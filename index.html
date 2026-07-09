@@ -431,6 +431,13 @@ function vStudentDetail(id){
   const past=lessons.filter(isPast);
   const lastFocus=past.length&&past[0].nextFocus?past[0].nextFocus:'';
   const lastTitle=past.length&&past[0].title?past[0].title:'';
+  let exRow='';
+  if(s.examDate){
+    const dd=Math.ceil((new Date(s.examDate+'T00:00')-new Date())/86400000);
+    const cnt=dd>1?('仲有'+dd+'日'):dd>=0?'就係呢兩日！':'已過';
+    exRow='<br>📅 考試日期：<b style="color:var(--neon)">'+esc(s.examDate)+(s.examTime?' '+esc(s.examTime):'')+'</b>（'+cnt+'）· 租車：'+(s.needRent==='要'?'<b style="color:var(--amber)">要</b>':'不要')
+      +' <a onclick="gcalExam(\''+s.id+'\')" style="color:var(--blue);cursor:pointer;font-weight:700">📆 加入日曆</a>';
+  }
   return `
   <button class="btn grey sm" onclick="VIEW_STUDENT=null;render()">← 返回學生列表</button>
   <div class="card" style="margin-top:10px">
@@ -439,7 +446,7 @@ function vStudentDetail(id){
       <span class="tag a">${esc(s.stage||'G1')}➜${esc(s.target||'G2')}</span>
       ${lastTitle?`<span class="tag g">上到：${esc(lastTitle)}</span>`:''}
       <button class="btn grey sm right" onclick="formStudent('${id}')">編輯</button></div>
-    <div class="muted" style="margin-top:6px">📞 ${esc(s.phone||'—')} · ✉️ ${esc(s.email||'—')}<br>📍 ${esc(s.address||'—')}${s.address?` <a onclick="gmapS('${id}')" style="color:var(--blue);cursor:pointer;font-weight:700">🗺️ 導航</a>`:''}<br>🏁 考試中心：${esc(s.centre||'未定')}</div>
+    <div class="muted" style="margin-top:6px">📞 ${esc(s.phone||'—')} · ✉️ ${esc(s.email||'—')}<br>📍 ${esc(s.address||'—')}${s.address?` <a onclick="gmapS('${id}')" style="color:var(--blue);cursor:pointer;font-weight:700">🗺️ 導航</a>`:''}<br>🏁 考試中心：${esc(s.centre||'未定')}${exRow}</div>
     ${s.notes?`<div style="margin-top:6px;font-size:13px">📝 ${esc(s.notes)}</div>`:''}
     ${(s.photos||[]).length?`<div class="row" style="margin-top:8px">${s.photos.map(p=>`<img class="thumb" src="${p.data}" onclick="viewPhoto('${id}','${p.id}')">`).join('')}</div>`:''}
     ${lastFocus?`<div style="margin-top:8px;padding:8px;background:rgba(240,160,32,.15);border-radius:8px;font-size:13px"><b>⭐ 下堂加強：</b>${esc(lastFocus)}</div>`:''}
@@ -481,7 +488,7 @@ function vStudentDetail(id){
     const ar=avgR(l);
     return `
     <div class="item">
-      <div class="row"><b>${l.date} ${l.start}</b>${l.ltype?`<span class="tag">${esc(l.ltype)}</span>`:''}<span class="muted">${l.dur}小時 · ${money(l.fee||0)}</span>
+      <div class="row"><b>${l.date} ${l.start}</b>${l.ltype?`<span class="tag">${esc(l.ltype)}</span>`:''}${l.rent?'<span class="tag a">🚗租車</span>':''}<span class="muted">${l.dur}小時 · ${money(l.fee||0)}</span>
         ${l.payStatus?`<span class="tag ${l.payStatus==='未付'?'r':'g'}">${esc(l.payStatus)}</span>`:''}
         ${isPast(l)?'':'<span class="tag a">未上</span>'}
         ${ar!=null?`<span class="tag a">⭐${ar}</span>`:''}
@@ -1017,7 +1024,7 @@ function vSettings(){
     資料量：約 ${usage} MB（雲端免費層上限1GB，好夠用；相片佔最多空間）</p></div>
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v1（第一階段·老闆版，基於v9）· 2026-07-09</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v1.1（＋考試日期/租車選項）· 2026-07-09</p></div>`;
 }
 
 /* --- 名單管理 --- */
@@ -1124,6 +1131,26 @@ function importData(input){
 }
 
 /* ================= Google Calendar ================= */
+function gcalExam(sid){
+  const s=stu(sid); if(!s) return;
+  if(!s.examDate){ alert('呢個學生未填考試日期（喺學生資料入面填）'); return; }
+  const det='學生: '+s.name+'\n電話: '+(s.phone||'—')+'\n考試中心: '+(s.centre||'—')+'\n租車: '+(s.needRent==='要'?'要':'不要（自己車）');
+  let dates;
+  if(s.examTime){
+    const st=new Date(s.examDate+'T'+s.examTime);
+    const en=new Date(st.getTime()+3600000); // 預設1小時，加入畫面可再改
+    const f=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+    dates=f(st)+'/'+f(en);
+  }else{
+    const nd=new Date(new Date(s.examDate+'T00:00').getTime()+86400000);
+    dates=s.examDate.replace(/-/g,'')+'/'+nd.getFullYear()+pad(nd.getMonth()+1)+pad(nd.getDate());
+  }
+  window.open('https://calendar.google.com/calendar/render?action=TEMPLATE'
+    +'&text='+encodeURIComponent('🏁 路試 '+(s.target||'')+' - '+s.name)
+    +'&dates='+dates+'&ctz=America/Toronto'
+    +'&location='+encodeURIComponent(s.centre||'')
+    +'&details='+encodeURIComponent(det),'_blank');
+}
 function gcal(lid){
   const l=DB.lessons.find(x=>x.id===lid); if(!l) return;
   const s=stu(l.studentId)||{};
@@ -1185,6 +1212,11 @@ function formStudent(id){
   <label>現有牌照</label><select id="f_stage">${['G1','G2'].map(x=>`<option ${(s.stage||'G1')===x?'selected':''}>${x}</option>`).join('')}</select>
   <label>目標牌照</label><select id="f_target">${['G2','Full G'].map(x=>`<option ${(s.target||'G2')===x?'selected':''}>${x}</option>`).join('')}</select>
   <label>目標考試中心</label><select id="f_centre"><option value="">未定</option>${cfg().centres.map(x=>`<option ${s.centre===x?'selected':''}>${esc(x)}</option>`).join('')}</select>
+  <label>📅 考試日期（學生真實book咗先填，未book留空）</label><input id="f_exdate" type="date" value="${s.examDate||''}">
+  <label>🕐 考試時間（可留空，留空Google日曆會出全日事件）</label><input id="f_extime" type="time" value="${s.examTime||''}">
+  <label>🚗 考試需要租車？</label><select id="f_needrent">
+    <option value="不要" ${(s.needRent||'不要')==='不要'?'selected':''}>不要（用自己車考）</option>
+    <option value="要" ${s.needRent==='要'?'selected':''}>要（考試日加租車費）</option></select>
   <label>狀態</label><select id="f_status">${['學緊','已考牌','暫停'].map(x=>`<option ${(s.status||'學緊')===x?'selected':''}>${x}</option>`).join('')}</select>
   <label>備註</label><textarea id="f_notes" rows="2">${esc(s.notes||'')}</textarea>
   <label>📷 相片（駕駛執照等，自動壓縮）</label>
@@ -1229,6 +1261,7 @@ function saveStudent(id){
   const d={name, region, phone:fmtPhone(val('f_phone'),region), email:val('f_email'), address:val('f_addr'),
     rate:val('f_rate')?Number(val('f_rate')):null,
     stage:val('f_stage'), target:val('f_target'), centre:val('f_centre'), status:val('f_status'), notes:val('f_notes'),
+    examDate:val('f_exdate')||'', examTime:val('f_extime')||'', needRent:val('f_needrent'),
     photos:TMP_PHOTOS};
   if(id){ Object.assign(stu(id), d); } else { d.id=uid(); DB.students.push(d); }
   closeModal(); save();
@@ -1260,6 +1293,10 @@ function formLesson(id, presetStu){
   <label>學生</label><select id="f_sid" onchange="calcFee()">${DB.students.map(s=>`<option value="${s.id}" ${s.id===sid?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
   <label>💵 堂類型（自動計價，金額可再改）</label>
   <select id="f_ltype" onchange="typeChanged()">${['G2堂','G堂','G2考試日','G考試日','自訂'].map(x=>`<option ${ltype===x?'selected':''}>${x}</option>`).join('')}</select>
+  <div id="rentRow" style="display:none;margin-top:8px;padding:8px 10px;background:#16291e;border:1px solid var(--line);border-radius:8px">
+    <label style="display:inline-flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--ink);cursor:pointer">
+      <input type="checkbox" id="f_rent" style="width:auto" onchange="calcFee()">
+      🚗 租車考試（剔咗＝加租車費 $${cfg().rates.rental}；唔剔＝學生用自己車考，只計上堂時數）</label></div>
   <label>📚 課程選單（G2 / Full G / 重點訓練）</label>
   <select id="f_curr" onchange="applyCurr(this.value)"><option value="">— 自選內容 —</option>
     <optgroup label="G2課程">${cfg().curriculum.map((c,i)=>({c,i})).filter(x=>x.c.track==='G2').map(x=>`<option value="${x.i}" ${x.i===currIdx?'selected':''}>${esc(x.c.t)}</option>`).join('')}</optgroup>
@@ -1287,14 +1324,24 @@ function formLesson(id, presetStu){
   <label>⭐ 下堂加強練習</label><textarea id="f_next" rows="2">${esc(l.nextFocus||'')}</textarea>
   <div class="row" style="margin-top:14px"><button class="btn" onclick="saveLesson('${id||''}')">儲存</button>
   <button class="btn grey" onclick="closeModal()">取消</button></div>`);
-  renderChecks(); updEnd();
+  renderChecks();
+  if(ltype.includes('考試')){
+    const row=document.getElementById('rentRow'), rc=document.getElementById('f_rent');
+    row.style.display='block';
+    rc.checked = (l.rent!=null) ? !!l.rent : (id ? true : (st0.needRent==='要')); // 舊堂未有rent欄位當有租車（同舊計法一致）
+  }
+  updEnd();
 }
 function autoFee(ty,dur,sid){
   const r=cfg().rates;
   const s=stu(sid!==undefined?sid:val('f_sid'));
   const rate=(s&&s.rate!=null&&s.rate!=='')?Number(s.rate):((ty==='G堂'||ty==='G考試日')?r.g:r.g2);
   if(ty==='G2堂'||ty==='G堂') return rate*dur;
-  if(ty==='G2考試日'||ty==='G考試日') return r.rental + rate*dur;
+  if(ty==='G2考試日'||ty==='G考試日'){
+    const rc=document.getElementById('f_rent');
+    const rent=rc?rc.checked:true; // 表單未起好時跟舊邏輯（連租車）
+    return (rent?r.rental:0) + rate*dur;
+  }
   return null;
 }
 function getDur(){
@@ -1319,6 +1366,12 @@ function typeChanged(){
   const c=document.getElementById('f_durc');
   if(ty.includes('考試')){ dEl.value='C'; c.style.display='block'; if(!c.value) c.value=3; }
   else if(ty!=='自訂'){ dEl.value='2'; c.style.display='none'; }
+  const row=document.getElementById('rentRow'), rc=document.getElementById('f_rent');
+  if(row&&rc){
+    const isEx=ty.includes('考試');
+    row.style.display=isEx?'block':'none';
+    if(isEx){ const s=stu(val('f_sid')); rc.checked=(s&&s.needRent==='要'); } // 預設跟學生檔案，可再手動改
+  }
   updEnd(); calcFee();
 }
 function calcFee(){
@@ -1391,6 +1444,7 @@ function saveLesson(id){
   const ratings={};
   topics.forEach(t=>{ if(TMP_RATES[t]) ratings[t]=TMP_RATES[t]; });
   const d={studentId:val('f_sid'), date, start, dur:durV, fee:Number(val('f_fee')||0),
+    rent: val('f_ltype').includes('考試') ? !!(document.getElementById('f_rent')&&document.getElementById('f_rent').checked) : null,
     ltype:val('f_ltype'), payStatus:val('f_pay'), loc:val('f_loc'), topics, checks:Object.keys(checks).length?checks:null,
     ratings:Object.keys(ratings).length?ratings:null,
     title: ci==='FOCUS'?'重點訓練':(ci!==''?cfg().curriculum[Number(ci)].t:''),
