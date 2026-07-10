@@ -102,6 +102,7 @@ th{color:var(--sub); font-weight:600; font-size:12px;}
   <button data-t="students"><span class="ic">👥</span>學生</button>
   <button data-t="schedule"><span class="ic">📅</span>排堂</button>
   <button data-t="money"><span class="ic">💰</span>帳目</button>
+  <button data-t="company" id="navCompany" style="display:none"><span class="ic">🏢</span>公司</button>
   <button data-t="settings"><span class="ic">⚙️</span>設定</button>
 </nav>
 <div id="modalbg" onclick="closeModal()"></div>
@@ -110,7 +111,7 @@ th{color:var(--sub); font-weight:600; font-size:12px;}
 <div id="loginwrap">
   <div class="logo">🚗</div>
   <h2>教車師父管理系統</h2>
-  <div style="color:var(--neon);font-size:13px;letter-spacing:2px">☁️ 雲端版 · 第一階段（老闆版）</div>
+  <div style="color:var(--neon);font-size:13px;letter-spacing:2px">☁️ 雲端多用戶版</div>
   <button class="gbtn" id="loginbtn" disabled><svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>用 Google 帳號登入</button>
   <div id="loginmsg">載入緊…</div>
 </div>
@@ -289,6 +290,7 @@ function render(){
   if(TAB==='students') m.innerHTML = VIEW_STUDENT ? vStudentDetail(VIEW_STUDENT) : vStudents();
   if(TAB==='schedule') m.innerHTML=vSchedule();
   if(TAB==='money') m.innerHTML=vMoney();
+  if(TAB==='company') m.innerHTML=vCompany();
   if(TAB==='settings') m.innerHTML=vSettings();
 }
 
@@ -911,7 +913,7 @@ function vMoney(){
   const total=DB.payments.reduce((a,p)=>a+Number(p.amount),0);
   const totalExp=(DB.expenses||[]).reduce((a,e)=>a+Number(e.amount),0);
   const incM=inc[thisM]||0, expM=exp[thisM]||0, profitM=incM-expM;
-  return `
+  return myCommCard()+`
   <div class="grid2">
     <div class="stat"><div class="l">本月收入</div><div class="v" style="color:var(--green)">${money(incM)}</div></div>
     <div class="stat"><div class="l">本月支出</div><div class="v" style="color:var(--red)">${money(expM)}</div></div>
@@ -952,12 +954,223 @@ function saveExpense(){
 }
 function delExpense(id){ if(confirm('刪除呢筆支出？')){ DB.expenses=DB.expenses.filter(e=>e.id!==id); save(); } }
 
+/* ================= 🏢 公司tab（v2：四級角色） ================= */
+const ROLE_NAME={boss:'老闆',admin:'管理員',lead:'主任',coach:'師父'};
+let COMPANY_MONTH=(function(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+pad(d.getMonth()+1);})();
+let COMMCALC=null;
+function myRole(){ return (window.ACCT&&window.ACCT.role)||''; }
+function isTop(){ return myRole()==='boss'||myRole()==='admin'; }
+function commLabel(c){ c=c||{type:'pct',value:20}; return c.type==='hr'?('$'+c.value+'/小時'):(c.value+'%'); }
+function commDue(month){ const p=month.split('-'); return new Date(Number(p[0]),Number(p[1]),8).getTime(); } // 下月8號前要交
+
+function vCompany(){
+  const S=window.STAFF||{};
+  const ids=Object.keys(S).sort((a,b)=>{
+    const r={boss:0,admin:1,lead:2,coach:3};
+    return (r[S[a].role]||9)-(r[S[b].role]||9);
+  });
+  const pend=ids.filter(id=>S[id].status==='pending');
+  const act=ids.filter(id=>S[id].status==='active');
+  const dis=ids.filter(id=>S[id].status==='disabled');
+  let h='';
+  // --- 邀請 ---
+  h+='<div class="card"><h3>📨 邀請新人（連結7日有效・一次性）</h3><div class="row">'
+    +'<button class="btn" onclick="inviteForm(\'coach\')">＋ 邀請師父</button>'
+    +(isTop()?'<button class="btn grey" onclick="inviteForm(\'lead\')">＋ 邀請主任</button>':'')
+    +(myRole()==='boss'?'<button class="btn grey" onclick="inviteForm(\'admin\')">＋ 邀請管理員</button>':'')
+    +'</div>'+(myRole()==='lead'?'<p class="muted" style="margin-bottom:0">你邀請嘅師父會自動入你團隊，批核由老闆/管理員做。</p>':'')+'</div>';
+  // --- 待批核 ---
+  if(pend.length&&isTop()){
+    h+='<div class="card"><h3>⏳ 待批核（'+pend.length+'）</h3>'+pend.map(id=>{
+      const u=S[id];
+      return '<div class="item"><div class="row"><b>'+esc(u.name||u.email)+'</b><span class="tag a">'+(ROLE_NAME[u.role]||u.role)+'</span><span class="muted">'+esc(u.email)+'</span>'
+        +'<span class="right"></span>'
+        +'<button class="btn grey sm" onclick="staffDetail(\''+id+'\')">📋 資料</button>'
+        +'<button class="btn green sm" onclick="if(confirm(\'批准佢入職？\'))window.staffSet(\''+id+'\',{status:\'active\',approvedAt:new Date().toISOString()})">✅ 批准</button>'
+        +'<button class="btn red sm" onclick="if(confirm(\'拒絕並刪除呢個申請？\'))window.staffDelete(\''+id+'\')">✕ 拒絕</button></div>'
+        +'<div class="muted" style="font-size:12px">電話：'+esc(u.phone||'—')+' · 佣金（邀請時預設）：'+commLabel(u.comm)+'</div></div>';
+    }).join('')+'</div>';
+  }
+  // --- 員工列表 ---
+  h+='<div class="card"><h3>👥 團隊（'+act.length+'人在職）</h3>'+ (act.length?act.map(id=>{
+    const u=S[id]; const isMe=id===(window.ACCT||{}).uid;
+    const leadName=u.teamLeadUid&&S[u.teamLeadUid]?('👔'+esc(S[u.teamLeadUid].name||'')):'';
+    return '<div class="item"><div class="row"><b>'+esc(u.name||u.email)+(isMe?'（我）':'')+'</b>'
+      +'<span class="tag '+(u.role==='boss'?'g':u.role==='coach'?'':'a')+'">'+(ROLE_NAME[u.role]||u.role)+'</span>'
+      +(leadName?'<span class="muted" style="font-size:11px">'+leadName+'</span>':'')
+      +'<span class="right"></span>'
+      +'<button class="btn grey sm" onclick="staffDetail(\''+id+'\')">📋</button>'
+      +(isTop()&&u.role!=='boss'?'<button class="btn amber sm" onclick="commForm(\''+id+'\')">💰</button>':'')
+      +(isTop()&&u.role==='coach'?'<button class="btn grey sm" onclick="teamForm(\''+id+'\')">👔</button>':'')
+      +((u.role!=='boss'&&!isMe&&(myRole()==='boss'||(myRole()==='admin'&&u.role!=='admin')))?'<button class="btn red sm" onclick="if(confirm(\'停用「'+esc(u.name||'')+'」？佢即時登入唔到，資料保留。\'))window.staffSet(\''+id+'\',{status:\'disabled\'})">🔒</button>':'')
+      +'</div>'
+      +(u.role!=='boss'?'<div class="muted" style="font-size:12px">佣金：'+commLabel(u.comm)+' · '+esc(u.email||'')+'</div>':'')
+      +'</div>';
+  }).join(''):'<p class="muted">仲未有其他員工，撳上面邀請。</p>')+'</div>';
+  // --- 停用 ---
+  if(dis.length&&isTop()){
+    h+='<div class="card"><h3>🔒 已停用（'+dis.length+'）</h3>'+dis.map(id=>{
+      const u=S[id];
+      return '<div class="item row"><b>'+esc(u.name||u.email)+'</b><span class="tag r">'+(ROLE_NAME[u.role]||u.role)+'</span><span class="right"></span>'
+        +'<button class="btn green sm" onclick="window.staffSet(\''+id+'\',{status:\'active\'})">重新啟用</button>'
+        +(myRole()==='boss'?'<button class="btn red sm" onclick="if(confirm(\'永久刪除「'+esc(u.name||'')+'」帳戶？\')&&confirm(\'再確認：佢嘅學生資料會留喺雲端但冇人管理，建議先睇📋。真係刪？\'))window.staffDelete(\''+id+'\')">🗑</button>':'')
+        +'</div>';
+    }).join('')+'</div>';
+  }
+  // --- 佣金月結（老闆/管理員） ---
+  if(isTop()){
+    h+='<div class="card"><h3>💰 佣金月結</h3>'
+      +'<div class="row"><label style="margin:0">月份</label><input type="month" value="'+COMPANY_MONTH+'" style="width:auto" onchange="COMPANY_MONTH=this.value;COMMCALC=null;render()">'
+      +'<button class="btn sm" onclick="calcCommMonth()">🧮 計算</button></div>'
+      +(COMMCALC&&COMMCALC.month===COMPANY_MONTH?commTable():'<p class="muted" style="margin-bottom:0">撳🧮計算——會逐個師父讀佢當月已收學費／時數，計應交佣金。</p>')
+      +'</div>';
+    h+=companyMoneyCards();
+  }
+  return h;
+}
+function commTable(){
+  const paidMap=window.COMMPAID||{};
+  const overdueTs=commDue(COMMCALC.month);
+  let tot=0,totPaid=0;
+  const rows=COMMCALC.rows.map(r=>{
+    const rec=paidMap[COMMCALC.month+'_'+r.uid];
+    const paid=rec&&rec.status==='paid';
+    if(paid) totPaid+=rec.amount; tot+=r.amount;
+    const late=!paid&&Date.now()>overdueTs;
+    const st=paid?'<span class="tag g">✅已收</span>':(late?'<span class="tag r">⚠️過期未交</span>':'<span class="tag a">未確認</span>');
+    return '<tr><td><b>'+esc(r.name)+'</b></td><td>'+r.modeTxt+'</td><td>'+r.baseTxt+'</td><td><b>'+money(r.amount)+'</b></td><td>'+st+'</td>'
+      +'<td>'+(paid
+        ?'<button class="btn grey sm" onclick="if(confirm(\'取消「已收」確認？\'))window.unconfirmComm(\''+COMMCALC.month+'\',\''+r.uid+'\')">↩︎</button>'
+        :'<button class="btn green sm" onclick="window.confirmComm(\''+COMMCALC.month+'\',\''+r.uid+'\','+r.amount+','+r.base+',\''+r.mode+'\','+r.value+')">✅ 已收</button>')+'</td></tr>';
+  }).join('');
+  return '<table style="margin-top:10px"><tr><th>師父</th><th>比例</th><th>基準</th><th>應交</th><th>狀態</th><th></th></tr>'+rows+'</table>'
+    +'<p class="muted" style="margin-bottom:0">合共應收 <b>'+money(tot)+'</b>・已確認 <b style="color:var(--green)">'+money(totPaid)+'</b>。'
+    +'下月8號前未確認會轉紅。基準＝該師父當月「已收學費」（%模式）或「已上堂時數」（$/小時模式）。</p>';
+}
+async function calcCommMonth(){
+  const S=window.STAFF||{}; const m=COMPANY_MONTH;
+  const btnMsg=document.getElementById('main');
+  const targets=Object.keys(S).filter(id=>S[id].status==='active'&&S[id].role!=='boss');
+  if(!targets.length){ alert('冇在職師父／主任需要計佣金。'); return; }
+  COMMCALC={month:m,rows:[],loading:true};
+  const rows=[];
+  for(const id of targets){
+    let base=0,hours=0;
+    try{
+      const d=await window.loadStaffData(id);
+      d.payments.forEach(p=>{ if((p.date||'').startsWith(m)) base+=Number(p.amount)||0; });
+      d.lessons.forEach(l=>{ if((l.date||'').startsWith(m)) hours+=Number(l.dur)||0; });
+    }catch(e){}
+    const c=S[id].comm||{type:'pct',value:20};
+    const amount=c.type==='hr'?Math.round(hours*c.value*100)/100:Math.round(base*c.value)/100;
+    rows.push({uid:id,name:S[id].name||S[id].email,mode:c.type,value:c.value,
+      modeTxt:commLabel(c), base:(c.type==='hr'?hours:base),
+      baseTxt:(c.type==='hr'?(hours+'小時'):('已收'+money(base))), amount});
+  }
+  COMMCALC={month:m,rows}; render();
+}
+function inviteForm(role){
+  openModal('<h3>📨 邀請'+(ROLE_NAME[role]||role)+'</h3>'
+    +'<label>佣金模式（新人預設，批核後可再改）</label><select id="iv_type"><option value="pct">收入百分比 %</option><option value="hr">每小時固定 $</option></select>'
+    +'<label>數值（%就填20＝兩成；$/小時就填例如8）</label><input id="iv_val" type="number" inputmode="decimal" value="20">'
+    +'<div class="row" style="margin-top:14px"><button class="btn" onclick="closeModal();window.makeInvite(\''+role+'\',val(\'iv_type\'),val(\'iv_val\'))">生成連結</button>'
+    +'<button class="btn grey" onclick="closeModal()">取消</button></div>');
+}
+function commForm(uid){
+  const u=(window.STAFF||{})[uid]||{}; const c=u.comm||{type:'pct',value:20};
+  openModal('<h3>💰 佣金設定 — '+esc(u.name||'')+'</h3>'
+    +'<label>模式</label><select id="cf_type"><option value="pct" '+(c.type!=='hr'?'selected':'')+'>收入百分比 %</option><option value="hr" '+(c.type==='hr'?'selected':'')+'>每小時固定 $</option></select>'
+    +'<label>數值</label><input id="cf_val" type="number" inputmode="decimal" value="'+c.value+'">'
+    +'<div class="row" style="margin-top:14px"><button class="btn" onclick="window.staffSet(\''+uid+'\',{comm:{type:val(\'cf_type\'),value:Number(val(\'cf_val\'))||0}});closeModal()">儲存</button>'
+    +'<button class="btn grey" onclick="closeModal()">取消</button></div>');
+}
+function teamForm(uid){
+  const S=window.STAFF||{}; const u=S[uid]||{};
+  const leads=Object.keys(S).filter(id=>S[id].role==='lead'&&S[id].status==='active');
+  openModal('<h3>👔 團隊調動 — '+esc(u.name||'')+'</h3>'
+    +'<label>直屬主任</label><select id="tf_lead"><option value="">直屬老闆（冇主任）</option>'
+    +leads.map(id=>'<option value="'+id+'" '+(u.teamLeadUid===id?'selected':'')+'>'+esc(S[id].name||'')+'</option>').join('')+'</select>'
+    +'<div class="row" style="margin-top:14px"><button class="btn" onclick="window.staffSet(\''+uid+'\',{teamLeadUid:val(\'tf_lead\')||null});closeModal()">儲存</button>'
+    +'<button class="btn grey" onclick="closeModal()">取消</button></div>');
+}
+async function staffDetail(uid){
+  const u=(window.STAFF||{})[uid]||{};
+  openModal('<h3>📋 '+esc(u.name||u.email||'')+'</h3><p class="muted">讀取緊資料…</p>');
+  const p=await window.loadStaffProfile(uid);
+  let opHtml='';
+  if(u.status==='active'){
+    try{
+      const d=await window.loadStaffData(uid);
+      const m=new Date().toISOString().slice(0,7);
+      const mFee=d.payments.filter(x=>(x.date||'').startsWith(m)).reduce((a,b)=>a+(Number(b.amount)||0),0);
+      const mLes=d.lessons.filter(x=>(x.date||'').startsWith(m));
+      const totFee=d.lessons.filter(l=>new Date(l.date+'T'+(l.start||'00:00'))<new Date()).reduce((a,b)=>a+(Number(b.fee)||0),0);
+      const totPaid=d.payments.reduce((a,b)=>a+(Number(b.amount)||0),0);
+      const exp=d.expenses.sort((x,y)=>(x.date<y.date?1:-1)).slice(0,8);
+      opHtml='<div class="grid2" style="margin-top:8px">'
+        +'<div class="stat"><div class="l">學生</div><div class="v">'+d.students.length+'</div></div>'
+        +'<div class="stat"><div class="l">本月堂數</div><div class="v">'+mLes.length+'</div></div>'
+        +'<div class="stat"><div class="l">本月已收</div><div class="v">'+money(mFee)+'</div></div>'
+        +'<div class="stat"><div class="l">未收(累計)</div><div class="v" style="color:'+(totFee-totPaid>0?'var(--red)':'var(--green)')+'">'+money(Math.max(0,totFee-totPaid))+'</div></div></div>'
+        +(exp.length?'<label>私人支出（唯讀）</label>'+exp.map(e=>'<div class="item row" style="font-size:13px"><span>'+esc(e.date||'')+'</span><span>'+esc(e.name||'')+'</span><span class="right">'+money(e.amount||0)+'</span></div>').join(''):'');
+    }catch(e){ opHtml='<p class="muted">營運資料讀取失敗：'+esc(e.code||e.message||'')+'</p>'; }
+  }
+  openModal('<h3>📋 '+esc(u.name||u.email||'')+' <span class="tag">'+(ROLE_NAME[u.role]||'')+'</span></h3>'
+    +'<div class="muted" style="font-size:13px">'+esc(u.email||'')+' · 📞'+esc((p&&p.phone)||u.phone||'—')+'</div>'
+    +(p?('<div style="font-size:13px;margin-top:6px">駕駛執照：'+esc(p.dlNo||'—')+' · 師父執照：'+esc(p.coachLicNo||'—')+' · 車牌：'+esc(p.plate||'—')+'</div>'
+      +'<div class="row" style="margin-top:8px">'+(p.dlPhoto?'<img class="thumb" src="'+p.dlPhoto+'">':'')+(p.licPhoto?'<img class="thumb" src="'+p.licPhoto+'">':'')+'</div>'):'<p class="muted">未有入職資料</p>')
+    +opHtml
+    +'<div class="row" style="margin-top:14px"><button class="btn grey" onclick="closeModal()">關閉</button></div>');
+}
+function companyMoneyCards(){
+  const m=COMPANY_MONTH;
+  const paidMap=window.COMMPAID||{};
+  const commIn=Object.keys(paidMap).filter(k=>k.startsWith(m+'_')&&paidMap[k].status==='paid').reduce((a,k)=>a+(Number(paidMap[k].amount)||0),0);
+  const cexp=(window.CEXP||[]).filter(e=>(e.date||'').startsWith(m));
+  const cexpSum=cexp.reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const myIncome=DB.payments.filter(p=>(p.date||'').startsWith(m)).reduce((a,b)=>a+(Number(b.amount)||0),0);
+  return '<div class="card"><h3>🏢 公司支出（'+m+'）</h3>'
+    +(cexp.length?cexp.map(e=>'<div class="item row"><span>'+esc(e.date)+'</span><b>'+esc(e.name)+'</b><span class="right">'+money(e.amount)+'</span>'
+      +'<button class="btn red sm" onclick="if(confirm(\'刪除呢筆公司支出？\'))window.delCompanyExpense(\''+e.id+'\')">✕</button></div>').join(''):'<p class="muted">本月未有公司支出</p>')
+    +'<button class="btn sm" style="margin-top:8px" onclick="companyExpenseForm()">＋ 公司支出</button></div>'
+  +'<div class="card"><h3>📈 公司盤數（'+m+'）</h3>'
+    +'<table><tr><td>佣金收入（已確認）</td><td style="text-align:right"><b style="color:var(--green)">'+money(commIn)+'</b></td></tr>'
+    +'<tr><td>公司支出</td><td style="text-align:right"><b style="color:var(--red)">−'+money(cexpSum)+'</b></td></tr>'
+    +'<tr><td><b>公司利潤</b></td><td style="text-align:right"><b style="color:'+(commIn-cexpSum>=0?'var(--neon)':'var(--red)')+'">'+money(commIn-cexpSum)+'</b></td></tr></table>'
+    +'<p class="muted" style="margin-bottom:0">你自己教學收入（唔計佣金、另計）：<b>'+money(myIncome)+'</b>（詳情喺💰帳目頁）</p></div>';
+}
+function companyExpenseForm(){
+  openModal('<h3>🏢 新增公司支出</h3>'
+    +'<label>日期</label><input id="ce_date" type="date" value="'+todayStr()+'">'
+    +'<label>項目（例：廣告、保險、租金）</label><input id="ce_name">'
+    +'<label>金額 (CAD)</label><input id="ce_amt" type="number" inputmode="decimal">'
+    +'<div class="row" style="margin-top:14px"><button class="btn" onclick="(function(){if(!val(\'ce_name\')||!val(\'ce_amt\')){alert(\'請填項目同金額\');return;}window.saveCompanyExpense({id:uid(),date:val(\'ce_date\')||todayStr(),name:val(\'ce_name\'),amount:Number(val(\'ce_amt\'))});closeModal();})()">儲存</button>'
+    +'<button class="btn grey" onclick="closeModal()">取消</button></div>');
+}
+function myCommCard(){
+  const c=(window.ACCT||{}).comm;
+  if(!c||myRole()==='boss') return '';
+  const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+  const m=d.getFullYear()+'-'+pad(d.getMonth()+1);
+  let base=0,hours=0;
+  DB.payments.forEach(p=>{ if((p.date||'').startsWith(m)) base+=Number(p.amount)||0; });
+  DB.lessons.forEach(l=>{ if((l.date||'').startsWith(m)) hours+=Number(l.dur)||0; });
+  const amount=c.type==='hr'?Math.round(hours*c.value*100)/100:Math.round(base*c.value)/100;
+  const rec=(window.COMMPAID||{})[m+'_'+(window.ACCT||{}).uid];
+  const paid=rec&&rec.status==='paid';
+  const late=!paid&&Date.now()>commDue(m);
+  return '<div class="card" style="border-color:'+(late?'var(--red)':'var(--blue)')+'"><h3>💼 上月應交佣金（'+m+'）</h3>'
+    +'<div class="row"><span>'+(c.type==='hr'?(hours+'小時 × $'+c.value):('已收'+money(base)+' × '+c.value+'%'))+'</span>'
+    +'<b class="right" style="font-size:20px">'+money(amount)+'</b></div>'
+    +'<p class="muted" style="margin-bottom:0">'+(paid?'✅ 公司已確認收到':(late?'⚠️ 已過交數期（下月8號前），請盡快交俾公司':'🕐 未確認——交咗之後等公司撳確認'))+'</p></div>';
+}
+
 /* ================= 設定頁 ================= */
 function vSettings(){
   const usage=(JSON.stringify(DB).length/1048576).toFixed(2);
   return `
   <div class="card"><h3>👤 帳戶</h3>
-    <p class="muted">登入中：<b>${esc((window.ACCT&&window.ACCT.email)||'…')}</b>（老闆）<br>資料庫：Firebase driving-school（蒙特利爾）</p>
+    <p class="muted">登入中：<b>${esc((window.ACCT&&window.ACCT.email)||'…')}</b>（${ROLE_NAME[myRole()]||'—'}）<br>資料庫：Firebase driving-school（蒙特利爾）</p>
     <button class="btn grey sm" onclick="window.cloudLogout&&window.cloudLogout()">登出</button></div>
   <div class="card"><h3>💾 備份與匯入</h3>
     <p class="muted">資料已自動同步上雲端，iPhone/iPad/Mac登入同一Google帳號即見同一份資料，唔使再過機。「匯出」係後備保險（建議每月一次）；「匯入」用嚟一次性搬舊單機版嘅備份檔上雲。</p>
@@ -1042,7 +1255,7 @@ function vSettings(){
     資料量：約 ${usage} MB（雲端免費層上限1GB，好夠用；相片佔最多空間）</p></div>
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v1.2（考場地址＋考試日自動排時間＋費用拆項＋學生三項費用）· 2026-07-09</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.0（多用戶：邀請/四級角色/佣金月結/公司盤數）· 2026-07-10</p></div>`;
 }
 
 /* --- 名單管理 --- */
@@ -1619,7 +1832,8 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRe
          onAuthStateChanged, signOut, setPersistence, browserLocalPersistence }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, doc, collection, onSnapshot,
-         writeBatch, setDoc, serverTimestamp }
+         writeBatch, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc,
+         query, where, Timestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1630,7 +1844,7 @@ const firebaseConfig = {
   messagingSenderId: "769909107328",
   appId: "1:769909107328:web:a20a60b3e3f9387b26d465"
 };
-const BOSS_EMAIL = "anderstutu@gmail.com"; // 第一階段：只限老闆
+const BOSS_EMAIL = "anderstutu@gmail.com"; // 老闆保險帳號（規則同App雙重寫死，鎖唔到自己出去）
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -1659,30 +1873,204 @@ $('loginbtn').addEventListener('click', async ()=>{
   }
 });
 
+/* ---------- v2：四級角色登入流程 ---------- */
+let ROLE='', MYDOC=null, STAFF={}, STAFF_UNSUB=null, COMM_UNSUB=null, CEXP_UNSUB=null;
+function gate(html){ // 用登入overlay做通道畫面
+  const w=$('loginwrap'); w.classList.remove('hide');
+  w.innerHTML='<div class="logo">🚗</div><h2>教車師父管理系統</h2>'+html
+    +'<button class="btn grey sm" style="margin-top:12px" onclick="window.cloudLogout&&window.cloudLogout(true)">登出</button>';
+}
+function invCode(){ return new URLSearchParams(location.search).get('inv'); }
+
 onAuthStateChanged(auth, async user=>{
   if(!user){
     teardown();
-    $('loginwrap').classList.remove('hide');
+    const w=$('loginwrap'); w.classList.remove('hide');
+    if(!$('loginbtn')){ location.reload(); return; } // gate畫面登出後還原登入頁
     $('loginbtn').disabled=false;
-    msg('第一階段只限老闆帳號登入。');
+    msg(invCode()?'你收到邀請連結——用Google登入開始入職。':'請用Google帳號登入。');
     chip('未登入',true);
     return;
   }
-  if((user.email||'').toLowerCase() !== BOSS_EMAIL){
-    msg('呢個Google帳號（'+user.email+'）未獲授權。第一階段只限老闆。');
-    await signOut(auth); return;
+  window.ACCT = { email:user.email, name:user.displayName||'', uid:user.uid };
+  msg('登入成功，檢查緊帳號…'); chip('☁️ 載入中…');
+  let snap;
+  try{ snap = await getDoc(doc(db,'users',user.uid)); }
+  catch(e){ msg('讀取帳號失敗：'+(e.code||e.message)); chip('⚠️ 錯誤',true); return; }
+
+  const isBossAcct=(user.email||'').toLowerCase()===BOSS_EMAIL;
+  if(!snap.exists()){
+    if(isBossAcct){
+      await setDoc(doc(db,'users',user.uid), { email:user.email, name:user.displayName||'', role:'boss', status:'active', createdAt:serverTimestamp() }, { merge:true });
+      return proceedActive(user, {role:'boss',status:'active'});
+    }
+    if(invCode()) return claimInvite(invCode(), user);
+    return gate('<div id="loginmsg">呢個Google帳號（'+esc(user.email)+'）未有帳戶，亦冇邀請連結。<br>請向老闆攞邀請連結再開一次。</div>');
   }
-  window.ACCT = { email:user.email, name:user.displayName||'' };
-  msg('登入成功，同步緊資料…'); chip('☁️ 載入中…');
-  try{ await setDoc(doc(db,'users',user.uid), { email:user.email, name:user.displayName||'', role:'boss', lastLogin:serverTimestamp() }, { merge:true }); }
-  catch(e){ msg('無法寫入資料庫：'+(e.code||e.message)+'（檢查安全規則）'); chip('⚠️ 錯誤',true); return; }
-  attach(user.uid);
+  const d=snap.data();
+  if(isBossAcct && (d.role!=='boss'||d.status!=='active')){
+    await setDoc(doc(db,'users',user.uid),{role:'boss',status:'active'},{merge:true}); d.role='boss'; d.status='active';
+  }
+  if(d.status==='pending'){
+    if(invCode()){ window.__invRole=d.role; return showOnboarding(user); } // 重開連結＝可以改資料再提交
+    return gate('<div id="loginmsg">📋 你嘅入職申請等緊上級批核。<br>批咗之後登入就可以用。<br><br>想改入職資料可以重開邀請連結。</div>');
+  }
+  if(d.status==='disabled') return gate('<div id="loginmsg">⛔ 你嘅帳號已停用，請聯絡老闆。</div>');
+  proceedActive(user, d);
 });
 
-window.cloudLogout = async ()=>{ if(confirm('確定登出？資料已喺雲端，登返入就見返。')) await signOut(auth); };
+async function proceedActive(user, d){
+  MYDOC=d; ROLE=d.role;
+  window.ACCT = { email:user.email, name:d.name||user.displayName||'', uid:user.uid, role:ROLE, comm:d.comm||null };
+  await setDoc(doc(db,'users',user.uid), { lastLogin:serverTimestamp() }, { merge:true });
+  // 公司tab：老闆/管理員/主任先見到
+  const nb=document.getElementById('navCompany');
+  if(nb) nb.style.display=(ROLE==='coach')?'none':'';
+  if(ROLE==='boss'||ROLE==='admin'){
+    STAFF_UNSUB=onSnapshot(collection(db,'users'), s=>{ STAFF={}; s.forEach(x=>STAFF[x.id]=x.data()); window.STAFF=STAFF; safeRender(); });
+    COMM_UNSUB=onSnapshot(collection(db,'commissions'), s=>{ const m={}; s.forEach(x=>m[x.id]=x.data()); window.COMMPAID=m; safeRender(); });
+    CEXP_UNSUB=onSnapshot(collection(db,'companyExpenses'), s=>{ const a=[]; s.forEach(x=>a.push(Object.assign({id:x.id},x.data()))); window.CEXP=a.sort((x,y)=>(x.date<y.date?1:-1)); safeRender(); });
+  }else if(ROLE==='lead'){
+    STAFF_UNSUB=onSnapshot(query(collection(db,'users'), where('teamLeadUid','==',user.uid)), s=>{ STAFF={}; s.forEach(x=>STAFF[x.id]=x.data()); STAFF[user.uid]=MYDOC; window.STAFF=STAFF; safeRender(); });
+  }else{
+    // 師父：聽自己嘅佣金記錄
+    COMM_UNSUB=onSnapshot(query(collection(db,'commissions'), where('uid','==',user.uid)), s=>{ const m={}; s.forEach(x=>m[x.id]=x.data()); window.COMMPAID=m; safeRender(); });
+  }
+  attach(user.uid);
+}
+
+/* ---------- 邀請claim＋入職表格 ---------- */
+async function claimInvite(code, user){
+  let inv;
+  try{ inv=await getDoc(doc(db,'invites',code)); }catch(e){ return gate('<div id="loginmsg">邀請連結讀取失敗：'+esc(e.code||e.message)+'</div>'); }
+  if(!inv.exists()) return gate('<div id="loginmsg">❌ 邀請連結無效（可能已被刪除）。請問老闆攞新連結。</div>');
+  const v=inv.data();
+  if(v.usedBy && v.usedBy!==user.uid) return gate('<div id="loginmsg">❌ 呢條邀請連結已經俾人用咗（一次性）。請問老闆攞新連結。</div>');
+  if(v.expiresAt && v.expiresAt.toMillis()<Date.now()) return gate('<div id="loginmsg">❌ 邀請連結已過期（7日有效）。請問老闆攞新連結。</div>');
+  try{
+    if(!v.usedBy) await updateDoc(doc(db,'invites',code), { usedBy:user.uid, usedAt:serverTimestamp(), usedEmail:user.email });
+    await setDoc(doc(db,'users',user.uid), {
+      email:user.email, name:user.displayName||'', role:v.role||'coach', status:'pending',
+      inviteCode:code, invitedBy:v.createdBy||null, teamLeadUid:v.teamLeadUid||null,
+      comm:v.comm||{type:'pct',value:20}, createdAt:serverTimestamp()
+    }, { merge:true });
+  }catch(e){ return gate('<div id="loginmsg">開檔失敗：'+esc(e.code||e.message)+'</div>'); }
+  window.__invRole=v.role||'coach';
+  showOnboarding(user);
+}
+let OB_PHOTOS={dl:'',lic:''};
+function obShot(kind,input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ const img=new Image(); img.onload=()=>{
+    const c=document.createElement('canvas'); let w=img.width,h=img.height; const max=800;
+    if(w>max){h=h*max/w;w=max;} if(h>max){w=w*max/h;h=max;}
+    c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+    OB_PHOTOS[kind]=c.toDataURL('image/jpeg',0.7);
+    const el=document.getElementById('ob_'+kind+'_ok'); if(el) el.textContent='✅ 已影';
+  }; img.src=r.result; };
+  r.readAsDataURL(f);
+}
+window.obShot=obShot;
+function showOnboarding(user){
+  const w=$('loginwrap'); w.classList.remove('hide');
+  const roleName={coach:'師父',lead:'主任',admin:'管理員'};
+  w.innerHTML='<div class="logo">🚗</div><h2>入職資料</h2>'
+    +'<div style="color:var(--neon);font-size:13px">職位：'+ (roleName[(window.__invRole||'coach')]||'師父') +'（簡化版，批核後可補其他資料）</div>'
+    +'<div style="width:100%;max-width:420px;text-align:left">'
+    +'<label>姓名 *</label><input id="ob_name" value="'+esc(user.displayName||'')+'">'
+    +'<label>電話 *</label><input id="ob_phone" inputmode="tel">'
+    +'<label>駕駛執照號碼 *</label><input id="ob_dl">'
+    +'<label class="btn grey sm" style="display:inline-block;width:auto;margin-top:6px">📷 影駕駛執照<input type="file" accept="image/*" style="display:none" onchange="obShot(\'dl\',this)"></label> <span id="ob_dl_ok" class="muted"></span>'
+    +'<label>教車師父執照號碼 *</label><input id="ob_lic">'
+    +'<label class="btn grey sm" style="display:inline-block;width:auto;margin-top:6px">📷 影師父執照<input type="file" accept="image/*" style="display:none" onchange="obShot(\'lic\',this)"></label> <span id="ob_lic_ok" class="muted"></span>'
+    +'<label>教學用車車牌 *</label><input id="ob_plate">'
+    +'</div>'
+    +'<button class="btn" style="margin-top:14px" onclick="window.obSubmit()">提交申請</button>'
+    +'<div id="loginmsg"></div>';
+}
+window.obSubmit = async ()=>{
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  if(!g('ob_name')||!g('ob_phone')||!g('ob_dl')||!g('ob_lic')||!g('ob_plate')){ msg('請填晒帶*嘅欄位'); return; }
+  msg('提交緊…');
+  try{
+    await setDoc(doc(db,'users',auth.currentUser.uid,'meta','profile'), {
+      name:g('ob_name'), phone:g('ob_phone'), dlNo:g('ob_dl'), coachLicNo:g('ob_lic'), plate:g('ob_plate'),
+      dlPhoto:OB_PHOTOS.dl||'', licPhoto:OB_PHOTOS.lic||'', submittedAt:serverTimestamp()
+    });
+    await setDoc(doc(db,'users',auth.currentUser.uid), { name:g('ob_name'), phone:g('ob_phone') }, { merge:true });
+  }catch(e){ msg('提交失敗：'+(e.code||e.message)); return; }
+  gate('<div id="loginmsg">✅ 申請已提交！等上級批核，批咗登入就用得。<br>你可以WhatsApp通知返邀請你嗰位。</div>');
+};
+
+/* ---------- 公司管理動作（俾classic script撳） ---------- */
+window.makeInvite = async (role,commType,commVal)=>{
+  const code=Math.random().toString(36).slice(2,10);
+  try{
+    await setDoc(doc(db,'invites',code), {
+      role:role, createdBy:auth.currentUser.uid, creatorName:(window.ACCT||{}).name||'',
+      teamLeadUid:(ROLE==='lead')?auth.currentUser.uid:null,
+      comm:{type:commType||'pct', value:Number(commVal)||20},
+      usedBy:null, createdAt:serverTimestamp(),
+      expiresAt:Timestamp.fromMillis(Date.now()+7*86400000)
+    });
+  }catch(e){ alert('生成邀請失敗：'+(e.code||e.message)); return; }
+  const link=location.origin+location.pathname+'?inv='+code;
+  const roleName={coach:'師父',lead:'主任',admin:'管理員'}[role]||role;
+  openModal('<h3>📨 邀請連結（'+roleName+'）</h3>'
+    +'<p class="muted">7日有效、用一次即廢。發俾新人，佢開連結→Google登入→填入職資料→你喺公司頁批核。</p>'
+    +'<input readonly value="'+link+'" onclick="this.select()">'
+    +'<div class="row" style="margin-top:12px">'
+    +'<button class="btn" onclick="navigator.clipboard.writeText(\''+link+'\').then(()=>alert(\'已複製\'))">📄 複製</button>'
+    +'<button class="btn green" onclick="window.open(\'https://wa.me/?text=\'+encodeURIComponent(\'邀請你加入教車團隊（7日內有效）：\\n'+link+'\'),\'_blank\')">💬 WhatsApp發送</button>'
+    +'<button class="btn grey" onclick="closeModal()">關閉</button></div>');
+};
+window.staffSet = async (uid,patch)=>{
+  try{ await setDoc(doc(db,'users',uid), patch, { merge:true }); }
+  catch(e){ alert('更新失敗：'+(e.code||e.message)); }
+};
+window.staffDelete = async (uid)=>{
+  try{ await deleteDoc(doc(db,'users',uid)); }catch(e){ alert('刪除失敗：'+(e.code||e.message)); }
+};
+window.loadStaffProfile = async (uid)=>{
+  try{ const p=await getDoc(doc(db,'users',uid,'meta','profile')); return p.exists()?p.data():null; }
+  catch(e){ return null; }
+};
+// 一次過讀某員工嘅營運數（唯讀概覽）
+window.loadStaffData = async (uid)=>{
+  const out={students:[],lessons:[],payments:[],expenses:[]};
+  for(const cl of ['students','lessons','payments','expenses']){
+    const s=await getDocs(collection(db,'users',uid,cl));
+    s.forEach(x=>{ const d=x.data(); try{ out[cl].push(d.j?JSON.parse(d.j):d); }catch(e){} });
+  }
+  return out;
+};
+window.confirmComm = async (month,uid,amount,base,mode,value)=>{
+  try{
+    await setDoc(doc(db,'commissions',month+'_'+uid), {
+      uid, month, amount, base, mode, value, status:'paid', paidAt:serverTimestamp(), by:auth.currentUser.uid
+    });
+  }catch(e){ alert('確認失敗：'+(e.code||e.message)); }
+};
+window.unconfirmComm = async (month,uid)=>{
+  try{ await deleteDoc(doc(db,'commissions',month+'_'+uid)); }catch(e){ alert('取消失敗：'+(e.code||e.message)); }
+};
+window.saveCompanyExpense = async (d)=>{
+  try{ await setDoc(doc(db,'companyExpenses',d.id), d); }catch(e){ alert('儲存失敗：'+(e.code||e.message)); }
+};
+window.delCompanyExpense = async (id)=>{
+  try{ await deleteDoc(doc(db,'companyExpenses',id)); }catch(e){ alert('刪除失敗：'+(e.code||e.message)); }
+};
+
+window.cloudLogout = async (fromGate)=>{ if(fromGate===true||confirm('確定登出？資料已喺雲端，登返入就見返。')){ await signOut(auth); location.href=location.pathname; } };
 
 /* ---------- 監聽雲端 → 重建DB ---------- */
-function teardown(){ UNSUB.forEach(u=>u()); UNSUB=[]; UID=null; REM=null; CLOUD_READY=false; }
+function teardown(){
+  UNSUB.forEach(u=>u()); UNSUB=[]; UID=null; REM=null; CLOUD_READY=false;
+  if(STAFF_UNSUB){STAFF_UNSUB();STAFF_UNSUB=null;} if(COMM_UNSUB){COMM_UNSUB();COMM_UNSUB=null;} if(CEXP_UNSUB){CEXP_UNSUB();CEXP_UNSUB=null;}
+  STAFF={}; window.STAFF={}; window.COMMPAID={}; window.CEXP=[]; ROLE='';
+  const nb=document.getElementById('navCompany'); if(nb) nb.style.display='none';
+}
 
 function attach(uid){
   teardown();
@@ -1777,7 +2165,7 @@ window.cloudSave = function(){
 
 addEventListener('online', ()=>{ if(CLOUD_READY&&!SYNCING) chip('✅ 已同步'); });
 addEventListener('offline', ()=>chip('📡 離線（改動會暫存）',true));
-msg('第一階段只限老闆帳號登入。');
+msg(invCode()?'你收到邀請連結——用Google登入開始入職。':'請用Google帳號登入。');
 $('loginbtn').disabled=false;
 </script>
 </body>
