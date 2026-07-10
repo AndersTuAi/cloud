@@ -1255,7 +1255,7 @@ function vSettings(){
     資料量：約 ${usage} MB（雲端免費層上限1GB，好夠用；相片佔最多空間）</p></div>
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.0（多用戶：邀請/四級角色/佣金月結/公司盤數）· 2026-07-10</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.0.1（修復：公司tab唔現身）· 2026-07-10</p></div>`;
 }
 
 /* --- 名單管理 --- */
@@ -2065,15 +2065,18 @@ window.delCompanyExpense = async (id)=>{
 window.cloudLogout = async (fromGate)=>{ if(fromGate===true||confirm('確定登出？資料已喺雲端，登返入就見返。')){ await signOut(auth); location.href=location.pathname; } };
 
 /* ---------- 監聽雲端 → 重建DB ---------- */
-function teardown(){
+function teardownData(){ // 淨係清自己教學資料嘅監聽（attach會用）
   UNSUB.forEach(u=>u()); UNSUB=[]; UID=null; REM=null; CLOUD_READY=false;
+}
+function teardown(){ // 全清（登出先用）——唔好喺attach裏面叫，否則會殺埋公司tab
+  teardownData();
   if(STAFF_UNSUB){STAFF_UNSUB();STAFF_UNSUB=null;} if(COMM_UNSUB){COMM_UNSUB();COMM_UNSUB=null;} if(CEXP_UNSUB){CEXP_UNSUB();CEXP_UNSUB=null;}
   STAFF={}; window.STAFF={}; window.COMMPAID={}; window.CEXP=[]; ROLE='';
   const nb=document.getElementById('navCompany'); if(nb) nb.style.display='none';
 }
 
 function attach(uid){
-  teardown();
+  teardownData();
   UID = uid;
   REM = { photos:{}, config:null }; COLLS.forEach(c=>REM[c]={});
   GOT = new Set();
