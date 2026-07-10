@@ -760,6 +760,12 @@ function rtAutoVerdict(r){
 }
 function rtFinalVerdict(r){ return (r.override&&r.override!=='auto') ? r.override : rtAutoVerdict(r); }
 function rtMark(k,t){ RT.marks[k]=RT.marks[k]||{c:0,x:0}; RT.marks[k][t]++; render(); }
+function rtUnmark(k,t){
+  const m=RT.marks[k]; if(!m||!m[t]) return;
+  m[t]--;
+  if(!m.c&&!m.x) delete RT.marks[k]; // 兩邊都歸零就當冇記錄
+  render();
+}
 function rtClearItem(k){ delete RT.marks[k]; render(); }
 function rtFlag(f){ RT.flags[f]=!RT.flags[f]; render(); }
 function rtCancel(){ if(confirm('取消呢次評分？未儲存嘅記錄會唔見。')){ RT=null; render(); } }
@@ -778,7 +784,7 @@ function vRoadTest(){
   <div class="card">
     <div class="row"><b style="font-size:16px">🏁 ${RT.type} 模擬路試 Mock Road Test</b>
       <span class="tag a">${esc(stuName(RT.studentId))}</span><span class="muted right">${RT.date}</span></div>
-    <p class="muted" style="margin:8px 0 0">✓＝需改善 Improvement needed　✗＝缺乏技巧或判斷 Lack of skill／judgment<br>撳一下記一次，↺重設該項。</p>
+    <p class="muted" style="margin:8px 0 0">✓＝需改善 Improvement needed　✗＝缺乏技巧或判斷 Lack of skill／judgment<br>撳一下記一次；撳錯咗撳旁邊「−」減返一下；↺成項重設。</p>
   </div>
   <div class="card" style="position:sticky;top:70px;z-index:4">
     <div class="row">
@@ -793,7 +799,9 @@ function vRoadTest(){
         <div style="font-size:13px;font-weight:600">${i+1}. ${esc(it.zh)}</div>
         <div class="row" style="margin-top:4px"><span class="muted" style="font-size:11px;flex:1">${esc(it.en)}</span>
           <button class="btn sm" style="background:${m.c?'var(--amber)':'#24402f'};color:${m.c?'#fff':'var(--sub)'}" onclick="rtMark('${k}','c')">✓ ${m.c||''}</button>
+          ${m.c?`<button class="btn grey sm" onclick="rtUnmark('${k}','c')" style="color:var(--amber)">−</button>`:''}
           <button class="btn sm" style="background:${m.x?'var(--red)':'#24402f'};color:${m.x?'#fff':'var(--sub)'}" onclick="rtMark('${k}','x')">✗ ${m.x||''}</button>
+          ${m.x?`<button class="btn grey sm" onclick="rtUnmark('${k}','x')" style="color:var(--red)">−</button>`:''}
           ${(m.c||m.x)?`<button class="btn grey sm" onclick="rtClearItem('${k}')">↺</button>`:''}</div>
       </div>`;}).join('')}
   </div>`).join('')}
@@ -1255,7 +1263,7 @@ function vSettings(){
     資料量：約 ${usage} MB（雲端免費層上限1GB，好夠用；相片佔最多空間）</p></div>
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.0.1（修復：公司tab唔現身）· 2026-07-10</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.0.2（路試評分加「−」減一掣）· 2026-07-10</p></div>`;
 }
 
 /* --- 名單管理 --- */
