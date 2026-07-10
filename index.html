@@ -135,6 +135,64 @@ function DEF(){ return {
   cv:4,
   bookUrl:'',
   rt:{c:12,x:3},
+  rtExp:{
+    st_0:'上車先較好：座位、頭枕、大細鏡、安全帶，識用燈、水撥、demist；未較好就開車即扣。\nAdjust seat, headrest, mirrors & seatbelt and know all controls before moving off.',
+    st_1:'起步前望齊前後左右＋膊頭望盲點，淨睇鏡唔夠。\nShoulder-check the blind spot and scan around; mirrors alone are not enough.',
+    st_2:'離開路邊前打燈，起步後熄返；打錯邊都扣。\nSignal before leaving the curb and cancel after; wrong signal counts too.',
+    st_3:'死火、漏放手掣、錯波、油門迫力配合唔順都算。\nStalling, handbrake left on, wrong gear or rough pedal control.',
+    bk_0:'倒車全程回頭望後窗，唔可以淨靠鏡或倒車鏡頭。\nLook over your shoulder through the rear window; not just mirrors/camera.',
+    bk_1:'要慢而穩：速度均勻、軚盤順滑，唔好忽快忽慢。\nReverse slowly and steadily with smooth steering.',
+    bk_2:'倒直線貼路邊行直（約30cm內），唔好越倒越歪。\nKeep straight and parallel, within ~30cm of the curb.',
+    bk_3:'例如D波倒車、狂踩迫力、單手亂咁打軚。\nWrong gear, harsh braking or poor steering technique while backing.',
+    ta_0:'三點掉頭每一步都要打返啱方向燈：埋站右燈、掉頭左燈、後退右燈。\nSignal correctly at every point of the turnabout.',
+    ta_1:'每點停定→望兩邊→先郁；慢車快軚，一Take企正。\nStop and check both directions at each point; slow car, fast steering.',
+    ta_2:'死火、錯波、手忙腳亂踩錯掣。\nStalling, wrong gear or pedal confusion during the manoeuvre.',
+    da_0:'保持2-3秒跟車距離；超車後見到全車喺倒後鏡先切返入。\nKeep a 2–3s gap; after passing, don\'t cut back until the car shows in your mirror.',
+    da_1:'揀啱線、企喺線中間；壓線騎線行即扣。\nPick the correct lane and keep centred; don\'t straddle markings.',
+    da_2:'每次轉線、埋站、開步前都要膊頭望盲點。\nShoulder-check before every lane change or move.',
+    da_3:'轉線前約3秒打燈，完成後熄返。\nSignal ~3 seconds before changing lanes; cancel after.',
+    da_4:'行人永遠優先；輪到你行就行，過份謙讓阻交通都扣。\nPedestrians first; take your right-of-way when it\'s yours—over-yielding counts too.',
+    da_5:'呢啲位要提前鬆油、隻腳戒喺迫力上面。\nSlow early and cover the brake at crossovers, school zones, emergency scenes.',
+    da_6:'緊急車響咹要靠右停低；校巴紅燈閃，兩個方向都要停。\nPull right and stop for emergency vehicles; stop for flashing school buses both ways.',
+    da_7:'跟限速行；天雨路窄要減，無理由太慢阻人都扣。\nMatch the limit and conditions; too slow and impeding traffic is a fault too.',
+    da_8:'波檔、油門、迫力、軚盤要配合順滑，行車唔好一嗒一嗒。\nSmooth, coordinated use of all controls throughout.',
+    ix_0:'埋路口左–右–左掃視，綠燈都要望；有掣無掣一樣。\nScan left-right-left at every intersection, even on green.',
+    ix_1:'STOP牌要完全停定；紅燈右轉要先停後讓。\nComplete stop at stop signs; stop fully before right-turn-on-red.',
+    ix_2:'見紅燈早啲鬆油慢慢埋，唔好殺到埋身先急剎，又唔好太早慢晒。\nSlow smoothly and progressively—no late hard braking, no crawling too early.',
+    ix_3:'停喺停車線／斑馬線之後；睇唔到路口就停定先慢慢爬頭。\nStop behind the line or crosswalk; creep forward only after stopping.',
+    ix_4:'四面STOP先到先行、同時到讓右；無掣路口讓右手邊。\nFirst-come-first-go at all-way stops; yield to the right when in doubt.',
+    lt_0:'轉彎前最少30米（約半個街口）打燈。\nSignal at least 30m before the turn.',
+    lt_1:'提早入到左轉線／最貼中線嘅合法行車線先好轉。\nGet into the proper left-turn lane early.',
+    lt_2:'讓晒對頭直行車同橫過嘅行人先起步轉。\nYield to oncoming traffic and crossing pedestrians before turning.',
+    lt_3:'「線對線」轉入對應行車線，唔好拋出外線。\nTurn lane-to-lane; don\'t swing wide into the outer lane.',
+    lt_4:'唔好切對頭線個角位抄捷徑。\nDon\'t cut the corner across the oncoming lane.',
+    lt_5:'手拉手或推拉法打軚，轉完主動回軚，唔好放手由佢自己彈返。\nHand-over-hand or push-pull; recover the wheel actively—never let it spin back.',
+    lt_6:'入彎前減定速，彎中保持，出彎先加油。\nSet speed before the turn, steady through, accelerate out.',
+    lt_7:'死火、錯波、油門迫力唔配合。\nStalling or rough control use in the turn.',
+    rt2_0:'轉彎前最少30米打燈。\nSignal at least 30m before the turn.',
+    rt2_1:'提早埋右線、貼近路邊（約1米內）準備轉。\nMove into the right lane close to the curb early.',
+    rt2_2:'讓埋緊過馬路嘅行人同單車先轉——記住望單車線。\nYield to pedestrians and cyclists—check the bike lane.',
+    rt2_3:'右轉入返最近嗰條線，唔好拋到中線／外線。\nEnter the nearest lane; don\'t swing wide.',
+    rt2_4:'唔好切到上壆／太貼壆。\nDon\'t cut so tight you clip the curb.',
+    rt2_5:'手拉手或推拉法，轉完主動回軚。\nHand-over-hand or push-pull; recover the wheel actively.',
+    rt2_6:'入彎前減定速，彎中穩，出彎先加油。\nSet speed before the turn, steady through, accelerate out.',
+    rt2_7:'死火、錯波、油門迫力唔配合。\nStalling or rough control use in the turn.',
+    pk_0:'泊入同泊出都要回頭望＋盲點，唔好淨靠鏡。\nLook back and shoulder-check when backing in and pulling out.',
+    pk_1:'掂柱、掂隔籬車、上壆都係大扣分位——寧願慢。\nHitting objects, cars or climbing the curb—take it slow.',
+    pk_2:'泊好要企正：格內置中／貼路邊30cm內，車身唔好斜。\nFinish straight and centred, within ~30cm of the curb.',
+    pk_3:'離開車位前打燈＋望盲點先出。\nSignal and shoulder-check before pulling out of the space.',
+    pk_4:'死火、錯波、油門迫力亂踩。\nControl errors while parking.',
+    gr_0:'斜路泊車／起步前後都要望清環境，離開前打燈。\nObserve properly and signal before leaving the grade.',
+    gr_1:'泊車或起步嗰下唔可以向後溜；起步用手掣輔助。\nNo rolling back—use the parking brake to hold on the hill.',
+    gr_2:'上斜有壆軚擺離壆；落斜或無壆擺向壆。\nAngle wheels: away from curb facing uphill with curb; toward curb downhill/no curb.',
+    gr_3:'泊定要拉手掣＋入P／正確波檔，漏一樣都扣。\nSet the parking brake and select Park/proper gear.',
+    gr_4:'死火、後溜時亂踩掣。\nControl errors on the grade.',
+    fw_0:'匝道加速到接近車流速度，睇位＋打燈＋盲點先匯入。\nMatch traffic speed on the ramp; signal and shoulder-check before merging.',
+    fw_1:'提早部署入出口線；落到匝道先減速，唔好喺主路慢車。\nPosition early for the exit; slow on the ramp, not on the freeway.',
+    fw_2:'高速轉線更加要盲點＋足夠空位，切完保持速度。\nBlind-spot check and leave plenty of space when changing lanes at speed.',
+    fw_3:'高速最少3秒車距，天雨加倍。\nAt least a 3-second gap at highway speed—more in rain.',
+    fw_4:'跟車流保持穩定速度，忽快忽慢好危險。\nHold a steady speed with the flow; avoid surging and slowing.'
+  },
   waTpl:'你好 {name}！\n📅 排堂確認 Booking Confirmation\n━━━━━━━━━━\n日期 Date：{date}（{weekday}）\n時間 Time：{start} - {end}（{dur}小時/hrs）\n接送地點 Pickup：{loc}\n堂費 Fee：${fee} CAD\n━━━━━━━━━━\n收到請回覆「確認」✅\nPlease reply "OK" to confirm.\n多謝！Thank you!',
   curriculum:[
     {t:'G2 第1堂',track:'G2',k:[]},
@@ -203,6 +261,8 @@ function migrate(d){
   // v1.2遷移：考場地址庫補漏 + 學生單一時薪拆做G2/G兩個
   d.config.centreAddr = d.config.centreAddr || {};
   for(const k in def.centreAddr){ if(d.config.centreAddr[k]===undefined) d.config.centreAddr[k]=def.centreAddr[k]; }
+  d.config.rtExp = d.config.rtExp || {};
+  for(const k in def.rtExp){ if(d.config.rtExp[k]===undefined) d.config.rtExp[k]=def.rtExp[k]; }
   (d.students||[]).forEach(s=>{
     if(s.rate!=null && s.rate!=='' && s.rateG2==null){ s.rateG2=Number(s.rate); s.rateG=Number(s.rate); }
   });
@@ -759,6 +819,16 @@ function rtAutoVerdict(r){
   return 'pass';
 }
 function rtFinalVerdict(r){ return (r.override&&r.override!=='auto') ? r.override : rtAutoVerdict(r); }
+function rtExpForm(k){
+  const i=k.lastIndexOf('_'); const sid=k.slice(0,i), idx=Number(k.slice(i+1));
+  const sec=RT_SECTIONS.find(s=>s.id===sid); const it=sec&&sec.items[idx]; if(!it) return;
+  openModal(`<h3>✏️ 解釋 — ${esc(it.zh)}</h3>
+  <p class="muted">建議格式：第一行中文，第二行英文（評分頁會照樣分行顯示）。</p>
+  <textarea id="f_rtexp" rows="5">${esc((cfg().rtExp||{})[k]||'')}</textarea>
+  <div class="row" style="margin-top:14px">
+    <button class="btn" onclick="cfg().rtExp=cfg().rtExp||{};cfg().rtExp['${k}']=document.getElementById('f_rtexp').value.trim();closeModal();save()">儲存</button>
+    <button class="btn grey" onclick="closeModal()">取消</button></div>`);
+}
 function rtMark(k,t){ RT.marks[k]=RT.marks[k]||{c:0,x:0}; RT.marks[k][t]++; render(); }
 function rtUnmark(k,t){
   const m=RT.marks[k]; if(!m||!m[t]) return;
@@ -771,6 +841,7 @@ function rtFlag(f){ RT.flags[f]=!RT.flags[f]; render(); }
 function rtCancel(){ if(confirm('取消呢次評分？未儲存嘅記錄會唔見。')){ RT=null; render(); } }
 function rtSave(){
   RT.notes=(document.getElementById('rt_notes')||{value:RT.notes}).value;
+  delete RT._exp; // 解釋展開狀態唔使儲存
   if(!RT.id){ RT.id=uid(); DB.roadtests.push(RT); }
   else{ const i=DB.roadtests.findIndex(x=>x.id===RT.id); if(i>=0) DB.roadtests[i]=RT; else DB.roadtests.push(RT); }
   const saved=RT.id; RT=null; VIEW_STUDENT=DB.roadtests.find(x=>x.id===saved).studentId; TAB='students';
@@ -795,8 +866,12 @@ function vRoadTest(){
   ${secs.map(s=>`<div class="card"><h3>${esc(s.zh)} <span class="muted" style="font-weight:400;font-size:11px">${esc(s.en)}</span></h3>
     ${s.items.map((it,i)=>{
       const k=s.id+'_'+i; const m=RT.marks[k]||{c:0,x:0};
+      const exp=(cfg().rtExp||{})[k];
       return `<div class="item">
         <div style="font-size:13px;font-weight:600">${i+1}. ${esc(it.zh)}</div>
+        ${exp?`<details ${RT._exp&&RT._exp[k]?'open':''} ontoggle="RT._exp=RT._exp||{};RT._exp['${k}']=this.open" style="margin-top:2px">
+          <summary style="font-size:11px;cursor:pointer;color:var(--blue);list-style:none">ℹ️ 解釋</summary>
+          <div class="muted" style="font-size:12px;line-height:1.6;white-space:pre-line;padding:4px 8px;background:#16291e;border-radius:8px;margin-top:4px">${esc(exp)}</div></details>`:''}
         <div class="row" style="margin-top:4px"><span class="muted" style="font-size:11px;flex:1">${esc(it.en)}</span>
           <button class="btn sm" style="background:${m.c?'var(--amber)':'#24402f'};color:${m.c?'#fff':'var(--sub)'}" onclick="rtMark('${k}','c')">✓ ${m.c||''}</button>
           ${m.c?`<button class="btn grey sm" onclick="rtUnmark('${k}','c')" style="color:var(--amber)">−</button>`:''}
@@ -1198,6 +1273,14 @@ function vSettings(){
     <label>✗（缺乏技巧）上限——超過就自動判不合格</label><input id="s_rtx" type="number" value="${cfg().rt.x}">
     <button class="btn sm" style="margin-top:8px" onclick="cfg().rt={c:Number(val('s_rtc'))||12,x:Number(val('s_rtx'))||3};save();alert('已更新門檻')">儲存門檻</button>
     <p class="muted" style="margin-bottom:0">MTO官方唔公開確實標準，呢個係你自己嘅訓練門檻。評分時你隨時可以手動推翻判定。</p></div>
+  <div class="card"><h3>ℹ️ 路試項目解釋管理</h3>
+    <p class="muted">評分頁每項可以撳「ℹ️解釋」展開。內容係教學用自家撰寫（非官方），撳✏️改到合你心意。</p>
+    ${RT_SECTIONS.map(s=>`<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;font-size:14px">${esc(s.zh)} <span class="muted" style="font-weight:400;font-size:11px">${esc(s.en)}</span></summary>
+      ${s.items.map((it,i)=>{const k=s.id+'_'+i;return `<div class="item">
+        <div class="row"><span style="font-size:13px;flex:1">${i+1}. ${esc(it.zh)}</span>
+        <button class="btn grey sm" onclick="rtExpForm('${k}')">✏️</button></div>
+        <div class="muted" style="font-size:12px;white-space:pre-line">${esc((cfg().rtExp||{})[k]||'（未有解釋，撳✏️加）')}</div></div>`;}).join('')}
+    </details>`).join('')}</div>
   <div class="card"><h3>📆 學生自助book堂（Google Calendar預約時段）</h3>
     <p class="muted">喺Google Calendar設定「預約時段」後，將條booking link貼喺度，以後就可以一撳send俾學生自己揀時間。</p>
     <label>你嘅booking link</label><input id="s_burl" placeholder="https://calendar.app.google/..." value="${esc(cfg().bookUrl||'')}">
@@ -1263,7 +1346,7 @@ function vSettings(){
     資料量：約 ${usage} MB（雲端免費層上限1GB，好夠用；相片佔最多空間）</p></div>
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.0.2（路試評分加「−」減一掣）· 2026-07-10</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.1（路試「−」減一掣＋每項ℹ️中英解釋可自訂）· 2026-07-10</p></div>`;
 }
 
 /* --- 名單管理 --- */
