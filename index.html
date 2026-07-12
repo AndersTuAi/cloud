@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.3.1">
+<meta name="app-ver" content="2.4">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1076,6 +1076,49 @@ function isTop(){ return myRole()==='boss'||myRole()==='admin'; }
 function commLabel(c){ c=c||{type:'pct',value:20}; return c.type==='hr'?('$'+c.value+'/小時'):(c.value+'%'); }
 function commDue(month){ const p=month.split('-'); return new Date(Number(p[0]),Number(p[1]),8).getTime(); } // 下月8號前要交
 
+/* --- 員工欄位表操作 --- */
+const SF_TYPE={text:'文字',tel:'電話',date:'日期',number:'數字',photo:'相片'};
+function sfList(){ return window.SFIELDS||[]; }
+function sfToggle(i){ const f=sfList(); f[i].req=f[i].req==='onboard'?'later':'onboard'; window.saveStaffFields(f); }
+function sfMove(i,d){ const f=sfList(); const j=i+d; if(j<0||j>=f.length) return; const t=f[i]; f[i]=f[j]; f[j]=t; window.saveStaffFields(f); }
+function sfRename(i){ const f=sfList(); const v=(prompt('欄位改名：',f[i].label)||'').trim(); if(!v) return; f[i].label=v; window.saveStaffFields(f); }
+function sfDel(i){ const f=sfList(); if(f[i].lock){ alert('呢欄係系統核心（批核/聯絡用），刪唔到。'); return; }
+  if(!confirm('刪除欄位「'+f[i].label+'」？已入職員工填過嘅資料唔會消失，只係唔再顯示。')) return;
+  f.splice(i,1); window.saveStaffFields(f); }
+function sfAddForm(){
+  openModal('<h3>＋ 新增員工資料欄位</h3>'
+    +'<label>欄位名稱</label><input id="sf_label" placeholder="例：急救證書到期日">'
+    +'<label>類型</label><select id="sf_type" onchange="document.getElementById(\'sf_exp_row\').style.display=this.value===\'date\'?\'block\':\'none\'">'
+    +Object.keys(SF_TYPE).map(k=>'<option value="'+k+'">'+SF_TYPE[k]+'</option>').join('')+'</select>'
+    +'<div id="sf_exp_row" style="display:none"><label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="sf_exp" style="width:auto">📅 呢個係到期日（納入30日提醒＋過期轉紅）</label></div>'
+    +'<label>幾時要填</label><select id="sf_req"><option value="onboard">🔴 入職必填</option><option value="later">🟡 批核後補填</option></select>'
+    +'<div class="row" style="margin-top:14px"><button class="btn" onclick="sfAdd()">加入</button><button class="btn grey" onclick="closeModal()">取消</button></div>');
+}
+function sfAdd(){
+  const label=val('sf_label'); if(!label){ alert('請填欄位名'); return; }
+  const f=sfList();
+  f.push({ id:'c_'+uid(), label:label, type:val('sf_type'), req:val('sf_req'),
+    exp:(val('sf_type')==='date'&&document.getElementById('sf_exp').checked)||undefined });
+  window.saveStaffFields(f); closeModal();
+}
+/* --- 全公司profile快取（到期提醒/欠資料標記用） --- */
+let PROF_LOADING=false;
+async function loadAllProfiles(force){
+  if(PROF_LOADING) return; if(window.PROFILES&&!force) return;
+  PROF_LOADING=true;
+  const S=window.STAFF||{}; const out={};
+  for(const id of Object.keys(S)){ try{ const p=await window.loadStaffProfile(id); if(p) out[id]=p; }catch(e){} }
+  window.PROFILES=out; PROF_LOADING=false; render();
+}
+function expDays(ds){ if(!ds) return null; return Math.ceil((new Date(ds+'T00:00')-new Date(new Date().toDateString()))/864e5); }
+function staffExpiryRows(uid2){ // 回傳該員工所有到期欄位狀態
+  const p=(window.PROFILES||{})[uid2]; if(!p) return [];
+  return sfList().filter(f=>f.exp).map(f=>({label:f.label, date:p[f.id]||'', d:expDays(p[f.id])})).filter(x=>x.date);
+}
+function staffMissCount(uid2){
+  const p=(window.PROFILES||{})[uid2]; if(!p) return null;
+  return sfList().filter(f=>!p[f.id]).length;
+}
 function vCompany(){
   const S=window.STAFF||{};
   const ids=Object.keys(S).sort((a,b)=>{
@@ -1108,7 +1151,11 @@ function vCompany(){
   h+='<div class="card"><h3>👥 團隊（'+act.length+'人在職）</h3>'+ (act.length?act.map(id=>{
     const u=S[id]; const isMe=id===(window.ACCT||{}).uid;
     const leadName=u.teamLeadUid&&S[u.teamLeadUid]?('👔'+esc(S[u.teamLeadUid].name||'')):'';
-    return '<div class="item"><div class="row"><b>'+esc(u.name||u.email)+(isMe?'（我）':'')+'</b>'
+    const hasExpired=staffExpiryRows(id).some(x=>x.d!=null&&x.d<0);
+    const miss=staffMissCount(id);
+    return '<div class="item"><div class="row"><b'+(hasExpired?' style="color:var(--red)"':'')+'>'+esc(u.name||u.email)+(isMe?'（我）':'')+'</b>'
+      +(hasExpired?'<span class="tag r">⛔ 有嘢過期</span>':'')
+      +((miss!=null&&miss>0)?'<span class="tag a">🟡 欠'+miss+'項資料</span>':'')
       +'<span class="tag '+(u.role==='boss'?'g':u.role==='coach'?'':'a')+'">'+(ROLE_NAME[u.role]||u.role)+'</span>'
       +(leadName?'<span class="muted" style="font-size:11px">'+leadName+'</span>':'')
       +'<span class="right"></span>'
@@ -1129,6 +1176,34 @@ function vCompany(){
         +(myRole()==='boss'?'<button class="btn red sm" onclick="if(confirm(\'永久刪除「'+esc(u.name||'')+'」帳戶？\')&&confirm(\'再確認：佢嘅學生資料會留喺雲端但冇人管理，建議先睇📋。真係刪？\'))window.staffDelete(\''+id+'\')">🗑</button>':'')
         +'</div>';
     }).join('')+'</div>';
+  }
+  // --- 員工資料欄位管理＋到期提醒（老闆/管理員） ---
+  if(isTop()){
+    if(!window.PROFILES && act.length) loadAllProfiles();
+    // 到期儀表板
+    let expRows=[];
+    act.forEach(id=>{ staffExpiryRows(id).forEach(x=>{ if(x.d!=null&&x.d<=30) expRows.push({name:S[id].name||S[id].email,...x}); }); });
+    expRows.sort((a,b)=>a.d-b.d);
+    h+='<div class="card"><h3>⏰ 執照／保險／驗車到期</h3>'
+      +(window.PROFILES
+        ?(expRows.length?expRows.map(x=>'<div class="item row"><b>'+esc(x.name)+'</b><span>'+esc(x.label)+'</span><span class="muted">'+esc(x.date)+'</span>'
+            +'<span class="right tag '+(x.d<0?'r':'a')+'">'+(x.d<0?('⛔ 過期'+(-x.d)+'日'):('仲有'+x.d+'日'))+'</span></div>').join('')
+          :'<p class="muted" style="margin-bottom:0">✅ 30日內冇嘢到期</p>')
+        :'<p class="muted" style="margin-bottom:0">讀取緊員工資料…</p>')
+      +'<button class="btn grey sm" style="margin-top:8px" onclick="loadAllProfiles(true)">🔄 重新讀取</button></div>';
+    // 欄位管理器
+    h+='<div class="card"><h3>📋 員工資料欄位管理</h3>'
+      +'<p class="muted">撳🔴/🟡標記直接切換「入職必填↔批核後補填」；✏️改名、↑↓排序、✕刪除、＋自訂新欄位。改完即時生效，新人入職表自動跟。</p>'
+      +sfList().map((f,i)=>'<div class="item row">'
+        +'<button class="btn sm" style="background:none;border:1px solid var(--line);font-size:16px;padding:4px 8px" onclick="sfToggle('+i+')" title="撳一下切換">'+(f.req==='onboard'?'🔴':'🟡')+'</button>'
+        +'<span style="font-size:13px;flex:1"><b>'+esc(f.label)+'</b> <span class="muted" style="font-size:11px">'+(SF_TYPE[f.type]||f.type)+(f.exp?'・📅到期提醒':'')+'</span></span>'
+        +'<button class="btn grey sm" onclick="sfMove('+i+',-1)">↑</button>'
+        +'<button class="btn grey sm" onclick="sfMove('+i+',1)">↓</button>'
+        +'<button class="btn grey sm" onclick="sfRename('+i+')">✏️</button>'
+        +(f.lock?'<span class="muted" style="padding:0 6px">🔒</span>':'<button class="btn red sm" onclick="sfDel('+i+')">✕</button>')
+        +'</div>').join('')
+      +'<button class="btn sm" style="margin-top:8px" onclick="sfAddForm()">＋ 加欄位</button>'
+      +'<p class="muted" style="margin-bottom:0">🔴 入職必填＝新人交表前一定要填　🟡 批核後補填＝入職後喺「我嘅檔案」補</p></div>';
   }
   // --- 佣金月結（老闆/管理員） ---
   if(isTop()){
@@ -1228,10 +1303,20 @@ async function staffDetail(uid){
         +(exp.length?'<label>私人支出（唯讀）</label>'+exp.map(e=>'<div class="item row" style="font-size:13px"><span>'+esc(e.date||'')+'</span><span>'+esc(e.name||'')+'</span><span class="right">'+money(e.amount||0)+'</span></div>').join(''):'');
     }catch(e){ opHtml='<p class="muted">營運資料讀取失敗：'+esc(e.code||e.message||'')+'</p>'; }
   }
+  let profHtml='<p class="muted">未有入職資料</p>';
+  if(p){
+    const photos=sfList().filter(f=>f.type==='photo'&&p[f.id]).map(f=>'<img class="thumb" src="'+p[f.id]+'" title="'+esc(f.label)+'">').join('');
+    const lines=sfList().filter(f=>f.type!=='photo').map(f=>{
+      const v=p[f.id];
+      let vs=v?esc(String(v)):'<span style="color:var(--amber)">未填</span>';
+      if(f.exp&&v){ const d=expDays(v); vs+=d<0?' <b style="color:var(--red)">⛔過期</b>':(d<=30?' <b style="color:var(--amber)">仲有'+d+'日</b>':''); }
+      return '<div class="row" style="font-size:13px;padding:3px 0;border-bottom:1px solid var(--line)"><span class="muted" style="min-width:140px">'+esc(f.label)+'</span><span>'+vs+'</span></div>';
+    }).join('');
+    profHtml=lines+(photos?'<div class="row" style="margin-top:8px">'+photos+'</div>':'');
+  }
   openModal('<h3>📋 '+esc(u.name||u.email||'')+' <span class="tag">'+(ROLE_NAME[u.role]||'')+'</span></h3>'
     +'<div class="muted" style="font-size:13px">'+esc(u.email||'')+' · 📞'+esc((p&&p.phone)||u.phone||'—')+'</div>'
-    +(p?('<div style="font-size:13px;margin-top:6px">駕駛執照：'+esc(p.dlNo||'—')+' · 師父執照：'+esc(p.coachLicNo||'—')+' · 車牌：'+esc(p.plate||'—')+'</div>'
-      +'<div class="row" style="margin-top:8px">'+(p.dlPhoto?'<img class="thumb" src="'+p.dlPhoto+'">':'')+(p.licPhoto?'<img class="thumb" src="'+p.licPhoto+'">':'')+'</div>'):'<p class="muted">未有入職資料</p>')
+    +'<div style="margin-top:8px">'+profHtml+'</div>'
     +opHtml
     +'<div class="row" style="margin-top:14px"><button class="btn grey" onclick="closeModal()">關閉</button></div>');
 }
@@ -1278,6 +1363,55 @@ function myCommCard(){
     +'<p class="muted" style="margin-bottom:0">'+(paid?'✅ 公司已確認收到':(late?'⚠️ 已過交數期（下月8號前），請盡快交俾公司':'🕐 未確認——交咗之後等公司撳確認'))+'</p></div>';
 }
 
+/* --- 我嘅檔案（員工自助補填/更新，全部角色都有） --- */
+let MF_PHOTOS={};
+function mfShot(kind,input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ const img=new Image(); img.onload=()=>{
+    const c=document.createElement('canvas'); let w=img.width,h=img.height; const max=800;
+    if(w>max){h=h*max/w;w=max;} if(h>max){w=w*max/h;h=max;}
+    c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+    MF_PHOTOS[kind]=c.toDataURL('image/jpeg',0.7);
+    const el=document.getElementById('mf_'+kind+'_ok'); if(el) el.textContent='✅ 已影（撳儲存先算數）';
+  }; img.src=r.result; };
+  r.readAsDataURL(f);
+}
+function myFileCard(){
+  const flds=window.SFIELDS, p=window.MYPROF;
+  if(!flds||p==null) return '';
+  const missing=flds.filter(f=>!p[f.id]&&!MF_PHOTOS[f.id]);
+  let expWarn='';
+  flds.filter(f=>f.exp&&p[f.id]).forEach(f=>{
+    const d=expDays(p[f.id]);
+    if(d!=null&&d<=30) expWarn+='<div class="tag '+(d<0?'r':'a')+'" style="margin:2px">'+esc(f.label)+(d<0?' ⛔過期'+(-d)+'日':' 仲有'+d+'日')+'</div>';
+  });
+  const rows=flds.map(f=>{
+    if(f.type==='photo'){
+      const cur=MF_PHOTOS[f.id]||p[f.id];
+      return '<label>'+esc(f.label)+'</label><div class="row">'
+        +(cur?'<img class="thumb" src="'+cur+'">':'')
+        +'<label class="btn grey sm" style="display:inline-block;width:auto;margin:0">📷 '+(cur?'重影':'影相')+'<input type="file" accept="image/*" style="display:none" onchange="mfShot(\''+f.id+'\',this)"></label>'
+        +'<span id="mf_'+f.id+'_ok" class="muted"></span></div>';
+    }
+    const t=f.type==='date'?'date':f.type==='number'?'number':f.type==='tel'?'tel':'text';
+    return '<label>'+esc(f.label)+'</label><input id="mf_'+f.id+'" type="'+t+'" value="'+esc(String(p[f.id]!=null?p[f.id]:''))+'">';
+  }).join('');
+  return `<div class="card"><h3>🪪 我嘅檔案</h3>
+    ${expWarn?'<div style="margin-bottom:6px">'+expWarn+'</div>':''}
+    ${missing.length?'<p class="muted" style="color:var(--amber)">🟡 仲有'+missing.length+'項未填：'+missing.map(f=>esc(f.label)).join('、')+'</p>':'<p class="muted">✅ 資料齊全</p>'}
+    ${rows}
+    <button class="btn" style="margin-top:12px" onclick="mfSave()">💾 儲存我嘅檔案</button></div>`;
+}
+async function mfSave(){
+  const flds=window.SFIELDS||[]; const patch={};
+  flds.forEach(f=>{
+    if(f.type==='photo'){ if(MF_PHOTOS[f.id]) patch[f.id]=MF_PHOTOS[f.id]; }
+    else{ const el=document.getElementById('mf_'+f.id); if(el) patch[f.id]=el.value.trim(); }
+  });
+  if(await window.saveMyProfile(patch)){ MF_PHOTOS={}; alert('✅ 已儲存'); }
+}
+
 /* ================= 設定頁 ================= */
 function vSettings(){
   const usage=(JSON.stringify(DB).length/1048576).toFixed(2);
@@ -1285,6 +1419,7 @@ function vSettings(){
   <div class="card"><h3>👤 帳戶</h3>
     <p class="muted">登入中：<b>${esc((window.ACCT&&window.ACCT.email)||'…')}</b>（${ROLE_NAME[myRole()]||'—'}）<br>資料庫：Firebase driving-school（蒙特利爾）</p>
     <button class="btn grey sm" onclick="window.cloudLogout&&window.cloudLogout()">登出</button></div>
+  ${myFileCard()}
   <div class="card"><h3>💾 備份與匯入</h3>
     <p class="muted">資料已自動同步上雲端，iPhone/iPad/Mac登入同一Google帳號即見同一份資料，唔使再過機。「匯出」係後備保險（建議每月一次）；「匯入」用嚟一次性搬舊單機版嘅備份檔上雲。</p>
     <div class="row">
@@ -2083,8 +2218,54 @@ async function proceedActive(user, d){
     // 師父：聽自己嘅佣金記錄
     COMM_UNSUB=onSnapshot(query(collection(db,'commissions'), where('uid','==',user.uid)), s=>{ const m={}; s.forEach(x=>m[x.id]=x.data()); window.COMMPAID=m; safeRender(); });
   }
+  // 欄位表（全公司共用，實時跟老闆改動）＋自己嘅檔案
+  SF_UNSUB=onSnapshot(doc(db,'company','staffFields'), snap=>{
+    if(snap.exists()&&snap.data().j){ try{ window.SFIELDS=JSON.parse(snap.data().j); }catch(e){ window.SFIELDS=sfDefaults(); } }
+    else{
+      window.SFIELDS=sfDefaults();
+      if(ROLE==='boss'||ROLE==='admin') window.saveStaffFields(sfDefaults()); // 第一次由老闆seed入雲
+    }
+    safeRender();
+  });
+  MYPROF_UNSUB=onSnapshot(doc(db,'users',user.uid,'meta','profile'), snap=>{
+    window.MYPROF=snap.exists()?snap.data():{}; safeRender();
+  });
   attach(user.uid);
 }
+
+/* ---------- 員工資料欄位表（老闆可自訂：加/減/🔴🟡切換） ---------- */
+let SF_UNSUB=null, MYPROF_UNSUB=null;
+function sfDefaults(){ return [
+  {id:'name',label:'姓名',type:'text',req:'onboard',lock:true},
+  {id:'phone',label:'電話',type:'tel',req:'onboard',lock:true},
+  {id:'dlNo',label:'駕駛執照號碼',type:'text',req:'onboard'},
+  {id:'dlExp',label:'駕駛執照到期日',type:'date',req:'onboard',exp:true},
+  {id:'dlPhoto',label:'駕駛執照相片',type:'photo',req:'onboard'},
+  {id:'coachLicNo',label:'教車師父執照號碼',type:'text',req:'onboard'},
+  {id:'licExp',label:'教車師父執照到期日',type:'date',req:'onboard',exp:true},
+  {id:'licPhoto',label:'教車師父執照相片',type:'photo',req:'onboard'},
+  {id:'plate',label:'教學用車車牌',type:'text',req:'onboard'},
+  {id:'insExp',label:'車保險到期日',type:'date',req:'onboard',exp:true},
+  {id:'etransfer',label:'e-Transfer收款email',type:'text',req:'onboard'},
+  {id:'selfie',label:'證件相／Profile相',type:'photo',req:'later'},
+  {id:'address',label:'住址',type:'text',req:'later'},
+  {id:'emg',label:'緊急聯絡人姓名＋電話',type:'text',req:'later'},
+  {id:'carModel',label:'車款',type:'text',req:'later'},
+  {id:'inspExp',label:'驗車到期日',type:'date',req:'later',exp:true},
+  {id:'expYears',label:'駕駛經驗（年）',type:'number',req:'later'}
+];}
+async function loadSFieldsOnce(){
+  try{ const s=await getDoc(doc(db,'company','staffFields')); return (s.exists()&&s.data().j)?JSON.parse(s.data().j):sfDefaults(); }
+  catch(e){ return sfDefaults(); }
+}
+window.saveStaffFields = async f=>{
+  try{ await setDoc(doc(db,'company','staffFields'),{ j:JSON.stringify(f), updatedAt:serverTimestamp(), by:auth.currentUser.uid }); }
+  catch(e){ alert('儲存欄位表失敗：'+(e.code||e.message)); }
+};
+window.saveMyProfile = async patch=>{
+  try{ await setDoc(doc(db,'users',auth.currentUser.uid,'meta','profile'), patch, {merge:true}); return true; }
+  catch(e){ alert('儲存失敗：'+(e.code||e.message)); return false; }
+};
 
 /* ---------- 邀請claim＋入職表格 ---------- */
 async function claimInvite(code, user){
@@ -2105,7 +2286,7 @@ async function claimInvite(code, user){
   window.__invRole=v.role||'coach';
   showOnboarding(user);
 }
-let OB_PHOTOS={dl:'',lic:''};
+let OB_PHOTOS={};
 function obShot(kind,input){
   const f=input.files[0]; if(!f) return;
   const r=new FileReader();
@@ -2119,34 +2300,54 @@ function obShot(kind,input){
   r.readAsDataURL(f);
 }
 window.obShot=obShot;
-function showOnboarding(user){
+async function showOnboarding(user){
   const w=$('loginwrap'); w.classList.remove('hide');
+  w.innerHTML='<div class="logo">🚗</div><h2>入職資料</h2><div id="loginmsg">載入緊表格…</div>';
+  const flds = window.SFIELDS || await loadSFieldsOnce();
+  window.__obFields = flds;
+  // 帶入已交過嘅資料（重開連結改資料用）
+  let old={};
+  try{ const p=await getDoc(doc(db,'users',user.uid,'meta','profile')); if(p.exists()) old=p.data(); }catch(e){}
   const roleName={coach:'師父',lead:'主任',admin:'管理員'};
+  const rows = flds.filter(f=>f.req==='onboard').map(f=>{
+    if(f.type==='photo'){
+      const has=OB_PHOTOS[f.id]||old[f.id];
+      return '<label>'+esc(f.label)+' *</label>'
+        +'<label class="btn grey sm" style="display:inline-block;width:auto;margin-top:2px">📷 影相／揀相<input type="file" accept="image/*" style="display:none" onchange="obShot(\''+f.id+'\',this)"></label>'
+        +' <span id="ob_'+f.id+'_ok" class="muted">'+(has?'✅ 已影':'')+'</span>';
+    }
+    const t = f.type==='date'?'date' : f.type==='number'?'number' : f.type==='tel'?'tel' : 'text';
+    const v = old[f.id]!=null ? old[f.id] : (f.id==='name'?(user.displayName||''):'');
+    return '<label>'+esc(f.label)+' *</label><input id="ob_'+f.id+'" type="'+t+'"'+(t==='tel'?' inputmode="tel"':'')+' value="'+esc(String(v))+'">';
+  }).join('');
   w.innerHTML='<div class="logo">🚗</div><h2>入職資料</h2>'
-    +'<div style="color:var(--neon);font-size:13px">職位：'+ (roleName[(window.__invRole||'coach')]||'師父') +'（簡化版，批核後可補其他資料）</div>'
-    +'<div style="width:100%;max-width:420px;text-align:left">'
-    +'<label>姓名 *</label><input id="ob_name" value="'+esc(user.displayName||'')+'">'
-    +'<label>電話 *</label><input id="ob_phone" inputmode="tel">'
-    +'<label>駕駛執照號碼 *</label><input id="ob_dl">'
-    +'<label class="btn grey sm" style="display:inline-block;width:auto;margin-top:6px">📷 影駕駛執照<input type="file" accept="image/*" style="display:none" onchange="obShot(\'dl\',this)"></label> <span id="ob_dl_ok" class="muted"></span>'
-    +'<label>教車師父執照號碼 *</label><input id="ob_lic">'
-    +'<label class="btn grey sm" style="display:inline-block;width:auto;margin-top:6px">📷 影師父執照<input type="file" accept="image/*" style="display:none" onchange="obShot(\'lic\',this)"></label> <span id="ob_lic_ok" class="muted"></span>'
-    +'<label>教學用車車牌 *</label><input id="ob_plate">'
-    +'</div>'
+    +'<div style="color:var(--neon);font-size:13px">職位：'+(roleName[(window.__invRole||'coach')]||'師父')+'（其餘資料批核後喺「我嘅檔案」補）</div>'
+    +'<div style="width:100%;max-width:420px;text-align:left">'+rows+'</div>'
     +'<button class="btn" style="margin-top:14px" onclick="window.obSubmit()">提交申請</button>'
     +'<div id="loginmsg"></div>';
 }
 window.obSubmit = async ()=>{
   const g=id=>((document.getElementById(id)||{}).value||'').trim();
-  if(!g('ob_name')||!g('ob_phone')||!g('ob_dl')||!g('ob_lic')||!g('ob_plate')){ msg('請填晒帶*嘅欄位'); return; }
+  const flds=(window.__obFields||[]).filter(f=>f.req==='onboard');
+  const data={};
+  // 相片欄：新影嘅用新，冇新影但之前交過嘅照舊
+  let oldP={};
+  try{ const p=await getDoc(doc(db,'users',auth.currentUser.uid,'meta','profile')); if(p.exists()) oldP=p.data(); }catch(e){}
+  for(const f of flds){
+    if(f.type==='photo'){
+      const v=OB_PHOTOS[f.id]||oldP[f.id]||'';
+      if(!v){ msg('請影「'+f.label+'」'); return; }
+      data[f.id]=v;
+    }else{
+      const v=g('ob_'+f.id);
+      if(!v){ msg('請填「'+f.label+'」'); return; }
+      data[f.id]=v;
+    }
+  }
   msg('提交緊…');
-  try{
-    // 淨係寫profile subdoc（pending帳號冇權改主檔——姓名電話批核時由上級自動搬入主檔）
-    await setDoc(doc(db,'users',auth.currentUser.uid,'meta','profile'), {
-      name:g('ob_name'), phone:g('ob_phone'), dlNo:g('ob_dl'), coachLicNo:g('ob_lic'), plate:g('ob_plate'),
-      dlPhoto:OB_PHOTOS.dl||'', licPhoto:OB_PHOTOS.lic||'', submittedAt:serverTimestamp()
-    });
-  }catch(e){ msg('提交失敗：'+(e.code||e.message)); return; }
+  data.submittedAt=serverTimestamp();
+  try{ await setDoc(doc(db,'users',auth.currentUser.uid,'meta','profile'), data, {merge:true}); }
+  catch(e){ msg('提交失敗：'+(e.code||e.message)); return; }
   gate('<div id="loginmsg">✅ 申請已提交！等上級批核，批咗登入就用得。<br>你可以WhatsApp通知返邀請你嗰位。</div>');
 };
 
@@ -2226,6 +2427,8 @@ function teardownData(){ // 淨係清自己教學資料嘅監聽（attach會用�
 function teardown(){ // 全清（登出先用）——唔好喺attach裏面叫，否則會殺埋公司tab
   teardownData();
   if(STAFF_UNSUB){STAFF_UNSUB();STAFF_UNSUB=null;} if(COMM_UNSUB){COMM_UNSUB();COMM_UNSUB=null;} if(CEXP_UNSUB){CEXP_UNSUB();CEXP_UNSUB=null;}
+  if(SF_UNSUB){SF_UNSUB();SF_UNSUB=null;} if(MYPROF_UNSUB){MYPROF_UNSUB();MYPROF_UNSUB=null;}
+  window.SFIELDS=null; window.MYPROF=null; window.PROFILES=null;
   STAFF={}; window.STAFF={}; window.COMMPAID={}; window.CEXP=[]; ROLE='';
   const nb=document.getElementById('navCompany'); if(nb) nb.style.display='none';
 }
