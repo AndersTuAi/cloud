@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<meta name="app-ver" content="2.2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -96,6 +97,7 @@ th{color:var(--sub); font-weight:600; font-size:12px;}
   </div>
   <div class="sub" id="today"></div>
 </header>
+<div id="updbar" style="display:none;position:sticky;top:0;z-index:50;background:var(--blue);color:#20301f;font-weight:700;text-align:center;padding:10px;cursor:pointer;font-size:14px" onclick="location.replace(location.pathname+'?u='+Date.now())"></div>
 <main id="main"></main>
 <nav id="nav">
   <button data-t="dash" class="on"><span class="ic">📊</span>統計</button>
@@ -1346,7 +1348,8 @@ function vSettings(){
     資料量：約 ${usage} MB（雲端免費層上限1GB，好夠用；相片佔最多空間）</p></div>
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v2.1（路試「−」減一掣＋每項ℹ️中英解釋可自訂）· 2026-07-10</p></div>`;
+    <div class="row" style="margin-top:10px"><button class="btn sm" onclick="checkUpdate(true)">🔄 檢查更新</button></div>
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（自動更新檢查已開啟：開App同由背景切返嚟都會自動check，有新版會彈金色橫條）· 2026-07-12</p></div>`;
 }
 
 /* --- 名單管理 --- */
@@ -1908,6 +1911,31 @@ function saveExam(id){
   if(d.result==='合格'&&d.type==='G'){ const s=stu(d.studentId); if(s) s.status='已考牌'; }
   closeModal(); save();
 }
+
+/* ================= 🔄 自動更新檢查 ================= */
+const APP_VER=(document.querySelector('meta[name="app-ver"]')||{content:'0'}).content;
+let LAST_CHK=0;
+async function checkUpdate(manual){
+  const now=Date.now();
+  if(!manual && now-LAST_CHK<600000) return; // 自動檢查10分鐘一次夠
+  LAST_CHK=now;
+  try{
+    const r=await fetch('index.html?chk='+now,{cache:'no-store',headers:{'Range':'bytes=0-2000'}});
+    const t=await r.text();
+    const m=t.match(/name="app-ver" content="([\d.]+)"/);
+    if(!m){ if(manual) alert('檢查唔到版本（網絡問題），遲啲再試。'); return; }
+    if(m[1]!==APP_VER){
+      const b=document.getElementById('updbar');
+      if(b){ b.style.display='block'; b.textContent='🆕 有新版本 v'+m[1]+'（你用緊 v'+APP_VER+'）— 撳呢度即刻更新'; }
+      if(manual) alert('有新版本 v'+m[1]+'！撳頂部金色橫條更新。');
+    }else{
+      if(manual) alert('✅ 你用緊最新版 v'+APP_VER+'，放心。');
+    }
+  }catch(e){ if(manual) alert('檢查失敗：'+e.message); }
+}
+window.addEventListener('load',()=>checkUpdate());
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) checkUpdate(); }); // 由背景切返嚟都check
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); } // 網絡優先，永遠攞最新版
 
 render();
 </script>
