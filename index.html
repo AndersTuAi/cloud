@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.2">
+<meta name="app-ver" content="2.3">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -368,6 +368,29 @@ function owedOf(sid){
   const paid=DB.payments.filter(p=>p.studentId===sid).reduce((a,p)=>a+Number(p.amount),0);
   return fees-paid;
 }
+/* --- 排堂list顏色系統：左邊色條＋考試日識別＋月份分組 --- */
+function ltypeColor(l){
+  const t=l.ltype||'';
+  if(t.includes('考試')) return 'var(--red)';
+  if(t==='G堂') return 'var(--green)';
+  if(t==='G2堂') return 'var(--blue)';
+  return '#5f7a68';
+}
+function lessonRowStyle(l){
+  const ex=(l.ltype||'').includes('考試');
+  return 'border-left:4px solid '+ltypeColor(l)+';padding-left:10px;'
+    +(ex?'background:rgba(208,90,65,.12);border-radius:0 10px 10px 0;':'');
+}
+function examBadge(l){
+  if(!(l.ltype||'').includes('考試')) return '';
+  const d=Math.round((new Date(l.date+'T00:00')-new Date(new Date().toDateString()))/864e5);
+  const txt=d===0?'今日考試！':(d>0?'仲有'+d+'日':'');
+  return '<span style="font-weight:800;color:var(--red);font-size:12px">🏁'+(txt?' '+txt:'')+'</span>';
+}
+function monthHdr(m){
+  return '<div style="margin:12px 0 2px;font-size:12px;font-weight:800;color:var(--neon);letter-spacing:2px;border-bottom:1px dashed var(--line);padding-bottom:4px">'
+    +m.slice(0,4)+'年'+Number(m.slice(5,7))+'月</div>';
+}
 function vDash(){
   const now=new Date(); const thisM=now.getFullYear()+'-'+pad(now.getMonth()+1);
   const inc=incomeByMonth();
@@ -384,9 +407,9 @@ function vDash(){
     ...DB.lessons.filter(l=>l.date===td).sort((a,b)=>a.start.localeCompare(b.start)).map(l=>({l,tag:'今日'})),
     ...DB.lessons.filter(l=>l.date===tmd).sort((a,b)=>a.start.localeCompare(b.start)).map(l=>({l,tag:'聽日'}))];
   const todayCard=dayList.length?`<div class="card" style="margin-top:12px"><h3>🗓️ 今日／聽日堂表</h3>${dayList.map(x=>`
-    <div class="item row"><span class="tag ${x.tag==='今日'?'g':'a'}">${x.tag}</span><b>${x.l.start}</b>
+    <div class="item row" style="${lessonRowStyle(x.l)}"><span class="tag ${x.tag==='今日'?'g':'a'}">${x.tag}</span>${examBadge(x.l)}<b>${x.l.start}</b>
       <span>${esc(stuName(x.l.studentId))}</span>
-      ${x.l.ltype?`<span class="tag">${esc(x.l.ltype)}</span>`:''}<span class="muted">${x.l.dur}小時</span>
+      ${x.l.ltype?`<span class="tag" style="color:${ltypeColor(x.l)}">${esc(x.l.ltype)}</span>`:''}<span class="muted">${x.l.dur}小時</span>
       ${x.l.loc?`<span class="muted">📍 ${esc(x.l.loc)}</span><button class="btn green sm" onclick="gmapL('${x.l.id}')">🗺️</button>`:''}
       <button class="btn green sm" onclick="waConfirm('${x.l.id}')">💬</button>
       <button class="btn sm right" onclick="gcal('${x.l.id}')">📅</button></div>`).join('')}</div>`:'';
@@ -446,11 +469,13 @@ function vDash(){
   // 動態頁：未來排堂 + 未補填
   const up=DB.lessons.filter(l=>!isPast(l)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).slice(0,10);
   const needFill=DB.lessons.filter(l=>isPast(l)&&!l.score&&!l.problems&&!l.nextFocus&&!l.checks).sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start)).slice(0,5);
-  const upCard=up.length?`<div class="card" style="margin-top:12px"><h3>🔜 未來排堂（最近10堂）</h3>${up.map(l=>`
-    <div class="item row"><b>${l.date} ${l.start}</b><span>${esc(stuName(l.studentId))}</span>
-      ${l.ltype?`<span class="tag">${esc(l.ltype)}</span>`:''}<span class="muted">${l.dur}小時</span>
+  let upM='';
+  const upCard=up.length?`<div class="card" style="margin-top:12px"><h3>🔜 未來排堂（最近10堂）</h3>${up.map(l=>{
+    const m=l.date.slice(0,7); const hdr=(m!==upM)?monthHdr(m):''; upM=m;
+    return hdr+`<div class="item row" style="${lessonRowStyle(l)}">${examBadge(l)}<b>${l.date} ${l.start}</b><span>${esc(stuName(l.studentId))}</span>
+      ${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}<span class="muted">${l.dur}小時</span>
       <button class="btn green sm" onclick="waConfirm('${l.id}')">💬</button>
-      <button class="btn sm right" onclick="gcal('${l.id}')">📅</button></div>`).join('')}</div>`:'';
+      <button class="btn sm right" onclick="gcal('${l.id}')">📅</button></div>`;}).join('')}</div>`:'';
   const fillCard=needFill.length?`<div class="card" style="margin-top:12px"><h3>📝 上完堂未補填記錄</h3>${needFill.map(l=>`
     <div class="item row"><b>${esc(stuName(l.studentId))}</b><span class="muted">${l.date} ${l.start}</span>
     <button class="btn amber sm right" onclick="formLesson('${l.id}')">補填</button></div>`).join('')}</div>`:'';
@@ -566,8 +591,8 @@ function vStudentDetail(id){
     const pct=pctOf(l);
     const ar=avgR(l);
     return `
-    <div class="item">
-      <div class="row"><b>${l.date} ${l.start}</b>${l.ltype?`<span class="tag">${esc(l.ltype)}</span>`:''}${l.rent?'<span class="tag a">🚗租車</span>':''}<span class="muted">${l.dur}小時 · ${money(l.fee||0)}</span>
+    <div class="item" style="${lessonRowStyle(l)}">
+      <div class="row">${examBadge(l)}<b>${l.date} ${l.start}</b>${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}${l.rent?'<span class="tag a">🚗租車</span>':''}<span class="muted">${l.dur}小時 · ${money(l.fee||0)}</span>
         ${l.payStatus?`<span class="tag ${l.payStatus==='未付'?'r':'g'}">${esc(l.payStatus)}</span>`:''}
         ${isPast(l)?'':'<span class="tag a">未上</span>'}
         ${ar!=null?`<span class="tag a">⭐${ar}</span>`:''}
@@ -968,9 +993,12 @@ function vSchedule(){
     <div class="item row"><b>${esc(stuName(l.studentId))}</b><span class="muted">${l.date} ${l.start}</span>
     <button class="btn amber sm right" onclick="formLesson('${l.id}')">補填</button></div>`).join('')}</div>`:''}
   <div class="card"><h3>📅 未來排堂</h3>
-  ${up.length?up.map(l=>`
-    <div class="item">
-      <div class="row"><b>${l.date} ${l.start}</b><span>${esc(stuName(l.studentId))}</span><span class="muted">${l.dur}小時</span></div>
+  <p class="muted" style="margin-top:0">色條：<span style="color:var(--blue)">■G2堂</span>　<span style="color:var(--green)">■G堂</span>　<span style="color:var(--red)">■考試日</span></p>
+  ${(()=>{let sM='';return up.length?up.map(l=>{
+    const m=l.date.slice(0,7); const hdr=(m!==sM)?monthHdr(m):''; sM=m;
+    return hdr+`
+    <div class="item" style="${lessonRowStyle(l)}">
+      <div class="row">${examBadge(l)}<b>${l.date} ${l.start}</b><span>${esc(stuName(l.studentId))}</span>${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}<span class="muted">${l.dur}小時</span></div>
       ${l.title?`<div class="muted">📚 ${esc(l.title)}</div>`:''}
       ${l.loc?`<div class="muted">📍 ${esc(l.loc)} <a onclick="gmapL('${l.id}')" style="color:var(--blue);cursor:pointer;font-weight:700">🗺️ 導航</a></div>`:''}
       <div class="row" style="margin-top:6px">
@@ -978,7 +1006,7 @@ function vSchedule(){
         <button class="btn sm" onclick="gcal('${l.id}')">📅 日曆</button>
         <button class="btn grey sm" onclick="formLesson('${l.id}')">改</button>
         <button class="btn red sm right" onclick="delLesson('${l.id}')">取消</button></div>
-    </div>`).join(''):'<div class="muted">未有排堂</div>'}</div>`;
+    </div>`;}).join(''):'<div class="muted">未有排堂</div>';})()}</div>`;
 }
 
 /* ================= 帳目頁 ================= */
