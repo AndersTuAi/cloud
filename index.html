@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.3">
+<meta name="app-ver" content="2.3.1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1099,7 +1099,7 @@ function vCompany(){
       return '<div class="item"><div class="row"><b>'+esc(u.name||u.email)+'</b><span class="tag a">'+(ROLE_NAME[u.role]||u.role)+'</span><span class="muted">'+esc(u.email)+'</span>'
         +'<span class="right"></span>'
         +'<button class="btn grey sm" onclick="staffDetail(\''+id+'\')">📋 資料</button>'
-        +'<button class="btn green sm" onclick="if(confirm(\'批准佢入職？\'))window.staffSet(\''+id+'\',{status:\'active\',approvedAt:new Date().toISOString()})">✅ 批准</button>'
+        +'<button class="btn green sm" onclick="if(confirm(\'批准佢入職？\'))window.approveStaff(\''+id+'\')">✅ 批准</button>'
         +'<button class="btn red sm" onclick="if(confirm(\'拒絕並刪除呢個申請？\'))window.staffDelete(\''+id+'\')">✕ 拒絕</button></div>'
         +'<div class="muted" style="font-size:12px">電話：'+esc(u.phone||'—')+' · 佣金（邀請時預設）：'+commLabel(u.comm)+'</div></div>';
     }).join('')+'</div>';
@@ -2141,11 +2141,11 @@ window.obSubmit = async ()=>{
   if(!g('ob_name')||!g('ob_phone')||!g('ob_dl')||!g('ob_lic')||!g('ob_plate')){ msg('請填晒帶*嘅欄位'); return; }
   msg('提交緊…');
   try{
+    // 淨係寫profile subdoc（pending帳號冇權改主檔——姓名電話批核時由上級自動搬入主檔）
     await setDoc(doc(db,'users',auth.currentUser.uid,'meta','profile'), {
       name:g('ob_name'), phone:g('ob_phone'), dlNo:g('ob_dl'), coachLicNo:g('ob_lic'), plate:g('ob_plate'),
       dlPhoto:OB_PHOTOS.dl||'', licPhoto:OB_PHOTOS.lic||'', submittedAt:serverTimestamp()
     });
-    await setDoc(doc(db,'users',auth.currentUser.uid), { name:g('ob_name'), phone:g('ob_phone') }, { merge:true });
   }catch(e){ msg('提交失敗：'+(e.code||e.message)); return; }
   gate('<div id="loginmsg">✅ 申請已提交！等上級批核，批咗登入就用得。<br>你可以WhatsApp通知返邀請你嗰位。</div>');
 };
@@ -2171,6 +2171,14 @@ window.makeInvite = async (role,commType,commVal)=>{
     +'<button class="btn" onclick="navigator.clipboard.writeText(\''+link+'\').then(()=>alert(\'已複製\'))">📄 複製</button>'
     +'<button class="btn green" onclick="window.open(\'https://wa.me/?text=\'+encodeURIComponent(\'邀請你加入教車團隊（7日內有效）：\\n'+link+'\'),\'_blank\')">💬 WhatsApp發送</button>'
     +'<button class="btn grey" onclick="closeModal()">關閉</button></div>');
+};
+window.approveStaff = async (uid)=>{ // 批准：順手將入職表嘅姓名/電話搬入主檔
+  try{
+    const p=await getDoc(doc(db,'users',uid,'meta','profile'));
+    const patch={status:'active', approvedAt:serverTimestamp(), approvedBy:auth.currentUser.uid};
+    if(p.exists()){ const d=p.data(); if(d.name) patch.name=d.name; if(d.phone) patch.phone=d.phone; }
+    await setDoc(doc(db,'users',uid), patch, {merge:true});
+  }catch(e){ alert('批准失敗：'+(e.code||e.message)); }
 };
 window.staffSet = async (uid,patch)=>{
   try{ await setDoc(doc(db,'users',uid), patch, { merge:true }); }
