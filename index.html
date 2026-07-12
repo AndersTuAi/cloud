@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.4">
+<meta name="app-ver" content="2.4.1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2204,7 +2204,8 @@ onAuthStateChanged(auth, async user=>{
 async function proceedActive(user, d){
   MYDOC=d; ROLE=d.role;
   window.ACCT = { email:user.email, name:d.name||user.displayName||'', uid:user.uid, role:ROLE, comm:d.comm||null };
-  await setDoc(doc(db,'users',user.uid), { lastLogin:serverTimestamp() }, { merge:true });
+  // lastLogin唔關鍵——就算規則唔俾寫都唔可以阻住登入
+  try{ await setDoc(doc(db,'users',user.uid), { lastLogin:serverTimestamp() }, { merge:true }); }catch(e){}
   // 公司tab：老闆/管理員/主任先見到
   const nb=document.getElementById('navCompany');
   if(nb) nb.style.display=(ROLE==='coach')?'none':'';
