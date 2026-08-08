@@ -2,39 +2,55 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.4.1">
+<meta name="app-ver" content="2.5">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>教車師父管理系統 ☁️雲端版</title>
 <style>
-:root{
-  --bg:#0f1d15; --card:#1c3226; --ink:#f2ead6; --sub:#8fa896;
-  --blue:#d9b64a; --green:#3a9d6e; --red:#d05a41; --amber:#e07a5f;
-  --line:#2a4433; --rad:14px; --neon:#e6c65f;
-}
+/* ===== 主題系統：5款 × 淺色/深色（html[data-theme][data-mode]） ===== */
+:root{ --rad:14px; }
+/* --- B 專業藍 --- */
+html[data-theme="B"][data-mode="dark"]{--bg:#0d1520;--card:#182634;--ink:#e8eef5;--sub:#8aa0b5;--blue:#4d9fe8;--green:#3aa87a;--red:#e05a5a;--amber:#e8a13c;--line:#26384a;--neon:#6fc0ff;--head:#101c28;--input:#122030;--grey:#22303f;--btnink:#08131f;--sh:0 10px 24px rgba(0,0,0,.5),0 2px 6px rgba(0,0,0,.35);}
+html[data-theme="B"][data-mode="light"]{--bg:#eef2f7;--card:#ffffff;--ink:#16283a;--sub:#6b8199;--blue:#1f6fc4;--green:#1f7d57;--red:#c33c3c;--amber:#b8791e;--line:#dbe3ec;--neon:#1f6fc4;--head:#16283a;--input:#f5f8fb;--grey:#e7edf4;--btnink:#ffffff;--sh:0 4px 14px rgba(22,40,58,.10),0 1px 3px rgba(22,40,58,.06);}
+/* --- D 極簡黑白 --- */
+html[data-theme="D"][data-mode="dark"]{--bg:#0a0a0a;--card:#171717;--ink:#f5f5f5;--sub:#8f8f8f;--blue:#ff8a3d;--green:#38b26a;--red:#e44d4d;--amber:#e8a13c;--line:#2b2b2b;--neon:#ff8a3d;--head:#000000;--input:#111111;--grey:#232323;--btnink:#0a0a0a;--sh:0 8px 20px rgba(0,0,0,.6);}
+html[data-theme="D"][data-mode="light"]{--bg:#f2f2f2;--card:#ffffff;--ink:#111111;--sub:#767676;--blue:#e0630c;--green:#1e8b4d;--red:#cc2f2f;--amber:#b57610;--line:#e2e2e2;--neon:#e0630c;--head:#111111;--input:#f7f7f7;--grey:#ececec;--btnink:#ffffff;--sh:0 3px 12px rgba(0,0,0,.10),0 1px 2px rgba(0,0,0,.06);}
+/* --- E 日系和風便利貼 --- */
+html[data-theme="E"][data-mode="dark"]{--bg:#22201c;--card:#3a352b;--ink:#e8e0d0;--sub:#9c9282;--blue:#c9a45c;--green:#7fa35e;--red:#d1705e;--amber:#d9a05b;--line:#4a4235;--neon:#d9bc7a;--head:#2b2823;--input:#332f28;--grey:#413b31;--btnink:#22201c;--sh:2px 3px 12px rgba(0,0,0,.5);}
+html[data-theme="E"][data-mode="light"]{--bg:#efe9dc;--card:#fdf6c9;--ink:#4a4238;--sub:#8c8172;--blue:#a8823a;--green:#5d8c4a;--red:#c05b4d;--amber:#b5813c;--line:#ddd3b8;--neon:#8a6a24;--head:#e3dbc9;--input:#fffdf2;--grey:#eae2cc;--btnink:#fffdf2;--sh:2px 3px 10px rgba(0,0,0,.13);}
+/* --- F 電子立體黑板粉筆 --- */
+html[data-theme="F"][data-mode="dark"]{--bg:#141a16;--card:#1f2a23;--ink:#fdfbf3;--sub:#9db3a5;--blue:#fff59d;--green:#a5e88a;--red:#ff9e8a;--amber:#ffe082;--line:#33453a;--neon:#fff59d;--head:#0f1512;--input:#1a2620;--grey:#2a3830;--btnink:#141a16;--sh:0 6px 0 rgba(0,0,0,.35),0 10px 22px rgba(0,0,0,.45);}
+html[data-theme="F"][data-mode="light"]{--bg:#26332c;--card:#314237;--ink:#fdfbf3;--sub:#a8bdae;--blue:#fff59d;--green:#a5e88a;--red:#ff9e8a;--amber:#ffe082;--line:#455a4b;--neon:#fff59d;--head:#1f2b24;--input:#2a3830;--grey:#3b4d41;--btnink:#26332c;--sh:0 6px 0 rgba(0,0,0,.3),0 10px 22px rgba(0,0,0,.38);}
+/* --- G Office Excel 資料 --- */
+html[data-theme="G"][data-mode="dark"]{--bg:#1b1b1b;--card:#242424;--ink:#e8e8e8;--sub:#9a9a9a;--blue:#6bbb8c;--green:#4caf7d;--red:#e06666;--amber:#d9a441;--line:#383838;--neon:#6bbb8c;--head:#12482c;--input:#2a2a2a;--grey:#303030;--btnink:#0d1a12;--sh:0 1px 3px rgba(0,0,0,.5);}
+html[data-theme="G"][data-mode="light"]{--bg:#f0f0f0;--card:#ffffff;--ink:#222222;--sub:#6e6e6e;--blue:#217346;--green:#217346;--red:#c00000;--amber:#b8860b;--line:#c8c8c8;--neon:#217346;--head:#217346;--input:#fafafa;--grey:#ececec;--btnink:#ffffff;--sh:0 1px 3px rgba(0,0,0,.12);}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 body{margin:0; font-family:-apple-system,"PingFang HK","PingFang TC",sans-serif; background:var(--bg); color:var(--ink); padding-bottom:80px;}
-header{background:#14251c; color:var(--ink); padding:calc(env(safe-area-inset-top) + 14px) 16px 14px; position:sticky; top:0; z-index:5; border-bottom:2px solid var(--blue); box-shadow:0 4px 18px rgba(0,0,0,.5);}
+header{background:var(--head); color:var(--ink); padding:calc(env(safe-area-inset-top) + 14px) 16px 14px; position:sticky; top:0; z-index:5; border-bottom:2px solid var(--blue); box-shadow:0 4px 18px rgba(0,0,0,.35);}
+html[data-mode="light"][data-theme="B"] header, html[data-mode="light"][data-theme="D"] header, html[data-theme="G"] header{color:#fff;}
+html[data-mode="light"][data-theme="B"] header .sub, html[data-mode="light"][data-theme="D"] header .sub, html[data-theme="G"] header .sub{color:rgba(255,255,255,.7);}
 header h1{margin:0; font-size:19px; font-weight:700; letter-spacing:1px;}
 header .sub{font-size:12px; color:var(--sub); margin-top:2px;}
-nav{position:fixed; bottom:0; left:0; right:0; background:#14251c; border-top:1px solid var(--line); display:flex; z-index:9; padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -4px 18px rgba(0,0,0,.5);}
+nav{position:fixed; bottom:0; left:0; right:0; background:var(--head); border-top:1px solid var(--line); display:flex; z-index:9; padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -4px 18px rgba(0,0,0,.3);}
+html[data-mode="light"][data-theme="B"] nav button, html[data-mode="light"][data-theme="D"] nav button, html[data-theme="G"] nav button{color:rgba(255,255,255,.62);}
+html[data-mode="light"][data-theme="B"] nav button.on, html[data-mode="light"][data-theme="D"] nav button.on, html[data-theme="G"] nav button.on{color:#fff;}
 nav button{flex:1; background:none; border:none; padding:10px 0 8px; font-size:12px; color:var(--sub); cursor:pointer;}
 nav button .ic{font-size:20px; display:block; margin-bottom:2px;}
 nav button.on{color:var(--blue); font-weight:700;}
 main{padding:14px; max-width:860px; margin:0 auto;}
-.card{background:var(--card); border-radius:var(--rad); padding:14px; margin-bottom:12px; border:1px solid var(--line); box-shadow:0 10px 24px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(217,182,74,.12);}
+.card{background:var(--card); border-radius:var(--rad); padding:14px; margin-bottom:12px; border:1px solid var(--line); box-shadow:var(--sh);}
 .card h3{margin:0 0 10px; font-size:15px; color:var(--ink);}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
-.stat{background:var(--card); border-radius:var(--rad); padding:12px; border:1px solid var(--line); box-shadow:0 10px 24px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(217,182,74,.12);}
+.stat{background:var(--card); border-radius:var(--rad); padding:12px; border:1px solid var(--line); box-shadow:var(--sh);}
 .stat .v{font-size:22px; font-weight:800; margin-top:4px;}
 .stat .l{font-size:12px; color:var(--sub);}
-.btn{display:inline-block; border:none; border-radius:10px; padding:10px 14px; font-size:14px; font-weight:600; cursor:pointer; background:var(--blue); color:#20301f; box-shadow:0 4px 12px rgba(0,0,0,.45);}
+.btn{display:inline-block; border:none; border-radius:10px; padding:10px 14px; font-size:14px; font-weight:600; cursor:pointer; background:var(--blue); color:var(--btnink); box-shadow:0 3px 10px rgba(0,0,0,.25);}
 .btn.sm{padding:6px 10px; font-size:12px; border-radius:8px;}
 .btn.green{color:#fff;}
 .btn.red{color:#fff;}
 .btn.amber{color:#fff;}
-.btn.grey{background:#24402f; color:var(--ink);}
+.btn.grey{background:var(--grey); color:var(--ink);}
 .btn.green{background:var(--green);}
 .btn.red{background:var(--red);}
 .btn.amber{background:var(--amber);}
@@ -42,13 +58,13 @@ main{padding:14px; max-width:860px; margin:0 auto;}
 .right{margin-left:auto;}
 .item{border-bottom:1px solid var(--line); padding:10px 0;}
 .item:last-child{border-bottom:none;}
-.tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; background:rgba(217,182,74,.16); color:var(--neon); margin:1px 2px 1px 0;}
-.tag.g{background:rgba(58,157,110,.2); color:#6fd6a3;}
-.tag.r{background:rgba(208,90,65,.2); color:#ff9a80;}
-.tag.a{background:rgba(224,122,95,.2); color:#ffc09b;}
+.tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; background:color-mix(in srgb,var(--blue) 16%,transparent); color:var(--neon); margin:1px 2px 1px 0;}
+.tag.g{background:color-mix(in srgb,var(--green) 20%,transparent); color:var(--green);}
+.tag.r{background:color-mix(in srgb,var(--red) 20%,transparent); color:var(--red);}
+.tag.a{background:color-mix(in srgb,var(--amber) 22%,transparent); color:var(--amber);}
 .tag .x{cursor:pointer; color:var(--red); font-weight:700; margin-left:4px;}
 .muted{color:var(--sub); font-size:12px;}
-input,select,textarea{width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:#16291e; color:var(--ink); font-family:inherit;}
+input,select,textarea{width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:var(--input); color:var(--ink); font-family:inherit;}
 label{font-size:12px; color:var(--sub); display:block; margin:10px 0 4px; font-weight:600;}
 .chart{display:flex; align-items:flex-end; gap:4px; height:120px; margin-top:8px;}
 .chart .bar{flex:1; background:var(--blue); border-radius:4px 4px 0 0; min-height:2px; position:relative;}
@@ -59,20 +75,61 @@ label{font-size:12px; color:var(--sub); display:block; margin:10px 0 4px; font-w
 #modal{display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:92%; max-width:480px; max-height:86vh; overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; z-index:21; box-shadow:0 20px 50px rgba(0,0,0,.7);}
 #modal h3{margin:0 0 4px;}
 .checkrow{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;}
-.checkrow label{display:inline-flex; align-items:center; gap:4px; margin:0; background:#24402f; padding:7px 10px; border-radius:8px; font-size:13px; color:var(--ink); cursor:pointer;}
+.checkrow label{display:inline-flex; align-items:center; gap:4px; margin:0; background:var(--grey); padding:7px 10px; border-radius:8px; font-size:13px; color:var(--ink); cursor:pointer;}
 .checkrow input{width:auto;}
 .searchbox{margin-bottom:12px;}
 table{width:100%; border-collapse:collapse; font-size:13px;}
 th,td{text-align:left; padding:8px 6px; border-bottom:1px solid var(--line);}
 th{color:var(--sub); font-weight:600; font-size:12px;}
 .score{color:var(--amber); letter-spacing:1px;}
-.acitem{padding:9px 10px; background:#16291e; border:1px solid var(--line); border-top:none; font-size:13px; cursor:pointer; color:var(--ink);}
+.acitem{padding:9px 10px; background:var(--input); border:1px solid var(--line); border-top:none; font-size:13px; cursor:pointer; color:var(--ink);}
 .acitem:first-child{border-top:1px solid var(--line); border-radius:0;}
 .acitem:last-child{border-radius:0 0 10px 10px;}
-.acitem:active{background:#24402f;}
+.acitem:active{background:var(--grey);}
 .thumb{width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;}
 .pct{font-weight:800;}
 @media(min-width:700px){ .grid2{grid-template-columns:repeat(4,1fr);} }
+/* ===== 各主題排版個性 ===== */
+/* E 和風便利貼：卡似便利貼（微歪＋膠紙＋虛線） */
+html[data-theme="E"] .card{position:relative; border-radius:2px; transform:rotate(-.45deg); margin-bottom:22px; border-color:transparent;}
+html[data-theme="E"] main .card:nth-of-type(even){transform:rotate(.5deg); background:color-mix(in srgb,var(--green) 14%,var(--card));}
+html[data-theme="E"] main .card:nth-of-type(3n){background:color-mix(in srgb,var(--red) 11%,var(--card));}
+html[data-theme="E"] main .card:nth-of-type(4n){background:color-mix(in srgb,var(--blue) 13%,var(--card));}
+html[data-theme="E"] .card::before{content:""; position:absolute; top:-9px; left:50%; transform:translateX(-50%) rotate(-2deg); width:72px; height:18px; background:color-mix(in srgb,var(--sub) 45%,transparent); box-shadow:0 1px 3px rgba(0,0,0,.12);}
+html[data-theme="E"] .card h3{border-bottom:2px dotted color-mix(in srgb,var(--ink) 25%,transparent); padding-bottom:5px;}
+html[data-theme="E"] .item{border-bottom:1px dashed color-mix(in srgb,var(--ink) 20%,transparent);}
+html[data-theme="E"] .stat{border-radius:2px; transform:rotate(-.6deg);}
+html[data-theme="E"] .grid2 .stat:nth-child(even){transform:rotate(.6deg);}
+html[data-theme="E"] .tag{border:1.5px solid currentColor; background:transparent;}
+html[data-theme="E"] header{letter-spacing:3px;}
+/* F 黑板粉筆：立體厚邊＋粉筆發光＋點紋底 */
+html[data-theme="F"] body{background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px); background-size:5px 5px;}
+html[data-theme="F"] .card,html[data-theme="F"] .stat{border-radius:4px; border:1px solid color-mix(in srgb,var(--ink) 18%,transparent); background:color-mix(in srgb,var(--ink) 5%,var(--card));}
+html[data-theme="F"] .card h3{color:var(--neon); text-shadow:0 0 10px color-mix(in srgb,var(--neon) 40%,transparent); border-bottom:2px dotted color-mix(in srgb,var(--ink) 25%,transparent); padding-bottom:6px; letter-spacing:1px;}
+html[data-theme="F"] .item{border-bottom:1px dotted color-mix(in srgb,var(--ink) 18%,transparent);}
+html[data-theme="F"] .tag{border:1.5px dashed currentColor; background:transparent;}
+html[data-theme="F"] .stat .v{text-shadow:0 0 10px color-mix(in srgb,var(--ink) 30%,transparent);}
+html[data-theme="F"] header{border-bottom:2px dashed color-mix(in srgb,var(--ink) 30%,transparent);}
+html[data-theme="F"] nav{border-top:2px dashed color-mix(in srgb,var(--ink) 28%,transparent);}
+html[data-theme="F"] .btn{border-radius:4px;}
+/* G Excel資料：方角、密集、網格線、數字等寬 */
+html[data-theme="G"]{--rad:2px;}
+html[data-theme="G"] .card,html[data-theme="G"] .stat{border-radius:2px; padding:0; overflow:hidden;}
+html[data-theme="G"] .card{border:1px solid var(--line);}
+html[data-theme="G"] .card h3{margin:0; padding:6px 9px; background:var(--grey); border-bottom:1px solid var(--line); font-size:12.5px; color:var(--blue); font-weight:700;}
+html[data-theme="G"] .card>*:not(h3){padding-left:9px; padding-right:9px;}
+html[data-theme="G"] .card>p:last-child,html[data-theme="G"] .card>div:last-child,html[data-theme="G"] .card>button:last-child{margin-bottom:9px;}
+html[data-theme="G"] .item{padding:5px 0; border-bottom:1px solid var(--line); font-size:12.5px;}
+html[data-theme="G"] main .card .item:nth-child(even){background:color-mix(in srgb,var(--ink) 4%,transparent);}
+html[data-theme="G"] .stat{padding:9px 10px;}
+html[data-theme="G"] .stat .v{font-size:19px; font-variant-numeric:tabular-nums;}
+html[data-theme="G"] .tag{border-radius:3px; border:1px solid currentColor; font-size:10px; padding:1px 6px;}
+html[data-theme="G"] .btn{border-radius:3px; box-shadow:none; border:1px solid color-mix(in srgb,var(--ink) 15%,transparent);}
+html[data-theme="G"] input,html[data-theme="G"] select,html[data-theme="G"] textarea{border-radius:3px;}
+html[data-theme="G"] td,html[data-theme="G"] th{border:1px solid var(--line); padding:5px 7px;}
+html[data-theme="G"] th{background:var(--grey);}
+html[data-theme="G"] .money,html[data-theme="G"] .stat .v{font-variant-numeric:tabular-nums;}
+
 #printarea{display:none;}
 #loginwrap{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:28px;text-align:center;}
 #loginwrap.hide{display:none;}
@@ -88,6 +145,16 @@ th{color:var(--sub); font-weight:600; font-size:12px;}
   #printarea{display:block!important;}
 }
 </style>
+<script>
+/* 開機即刻套用主題（避免閃一閃） */
+(function(){
+  var t=localStorage.getItem('drvTheme')||'G';
+  var m=localStorage.getItem('drvMode')||'auto';
+  var eff=(m==='auto')?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m;
+  document.documentElement.setAttribute('data-theme',t);
+  document.documentElement.setAttribute('data-mode',eff);
+})();
+</script>
 </head>
 <body>
 <header>
@@ -135,6 +202,8 @@ function DEF(){ return {
     'Oshawa':'200 John St W, Oshawa, ON L1J 2B4'
   },
   cv:4,
+  theme:'G', mode:'auto',
+  bdeFee:250,
   bookUrl:'',
   rt:{c:12,x:3},
   rtExp:{
@@ -284,6 +353,40 @@ function save(){
   if(window.cloudSave) window.cloudSave();
   render();
 }
+/* ================= 🎨 主題 ================= */
+const THEMES={B:{n:'專業藍',d:'商務中性，長時間睇眼唔攰'},D:{n:'極簡黑白',d:'黑白＋橙重點，字最清晰'},
+  E:{n:'和風便利貼',d:'便利貼卡片，輕鬆唔死板'},F:{n:'黑板粉筆',d:'黑板立體感，教車味最重'},
+  G:{n:'Excel資料',d:'表格密集，一屏睇最多嘢'}};
+function curTheme(){ return localStorage.getItem('drvTheme')||'G'; }
+function curMode(){ return localStorage.getItem('drvMode')||'auto'; }
+function applyTheme(t,m){
+  if(t) localStorage.setItem('drvTheme',t);
+  if(m) localStorage.setItem('drvMode',m);
+  const th=curTheme(), md=curMode();
+  const eff=(md==='auto')?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):md;
+  document.documentElement.setAttribute('data-theme',th);
+  document.documentElement.setAttribute('data-mode',eff);
+  // 記落雲端（過機／換機登入自動跟返）
+  if(typeof DB!=='undefined'&&DB&&DB.config&&(DB.config.theme!==th||DB.config.mode!==md)){
+    DB.config.theme=th; DB.config.mode=md; save();
+  }else render();
+}
+if(window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(curMode()==='auto') applyTheme(); });
+function syncThemeFromCloud(){
+  const c=(DB&&DB.config)||{};
+  if(c.theme&&c.theme!==curTheme()){ localStorage.setItem('drvTheme',c.theme); }
+  if(c.mode&&c.mode!==curMode()){ localStorage.setItem('drvMode',c.mode); }
+  const md=curMode();
+  const eff=(md==='auto')?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):md;
+  document.documentElement.setAttribute('data-theme',curTheme());
+  document.documentElement.setAttribute('data-mode',eff);
+}
+
+/* ================= 星期 ================= */
+const WD=['日','一','二','三','四','五','六'];
+function wd(dateStr){ if(!dateStr) return ''; const d=new Date(dateStr+'T00:00'); return isNaN(d)?'':'星期'+WD[d.getDay()]; }
+function dwd(dateStr){ return dateStr? dateStr+' '+wd(dateStr) : ''; }
+
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function money(n){ return '$'+(Math.round(n*100)/100).toLocaleString(); }
@@ -365,8 +468,16 @@ function incomeByMonth(){
 }
 function owedOf(sid){
   const fees=DB.lessons.filter(l=>l.studentId===sid && isPast(l)).reduce((a,l)=>a+Number(l.fee||0),0);
+  const s=stu(sid);
+  const bde=(s&&s.bde==='已報讀'&&s.bdeFee)?Number(s.bdeFee):0; // 我幫佢報BDE先計錢
   const paid=DB.payments.filter(p=>p.studentId===sid).reduce((a,p)=>a+Number(p.amount),0);
-  return fees-paid;
+  return fees+bde-paid;
+}
+function balText(sid){ // 學費結餘：正=尚欠、負=尚存（預繳）
+  const o=Math.round(owedOf(sid)*100)/100;
+  if(o>0.004) return {t:'尚欠 '+money(o), c:'var(--red)', o};
+  if(o<-0.004) return {t:'尚存 '+money(-o), c:'var(--green)', o};
+  return {t:'已找清', c:'var(--sub)', o:0};
 }
 /* --- 排堂list顏色系統：左邊色條＋考試日識別＋月份分組 --- */
 function ltypeColor(l){
@@ -407,7 +518,7 @@ function vDash(){
     ...DB.lessons.filter(l=>l.date===td).sort((a,b)=>a.start.localeCompare(b.start)).map(l=>({l,tag:'今日'})),
     ...DB.lessons.filter(l=>l.date===tmd).sort((a,b)=>a.start.localeCompare(b.start)).map(l=>({l,tag:'聽日'}))];
   const todayCard=dayList.length?`<div class="card" style="margin-top:12px"><h3>🗓️ 今日／聽日堂表</h3>${dayList.map(x=>`
-    <div class="item row" style="${lessonRowStyle(x.l)}"><span class="tag ${x.tag==='今日'?'g':'a'}">${x.tag}</span>${examBadge(x.l)}<b>${x.l.start}</b>
+    <div class="item row" style="${lessonRowStyle(x.l)}"><span class="tag ${x.tag==='今日'?'g':'a'}">${x.tag}${wd(x.l.date).slice(-1)}</span>${examBadge(x.l)}<b>${x.l.start}</b>
       <span>${esc(stuName(x.l.studentId))}</span>
       ${x.l.ltype?`<span class="tag" style="color:${ltypeColor(x.l)}">${esc(x.l.ltype)}</span>`:''}<span class="muted">${x.l.dur}小時</span>
       ${x.l.loc?`<span class="muted">📍 ${esc(x.l.loc)}</span><button class="btn green sm" onclick="gmapL('${x.l.id}')">🗺️</button>`:''}
@@ -419,7 +530,7 @@ function vDash(){
   const exCard=upEx.length?`<div class="card" style="margin-top:12px"><h3>⏰ 考試倒數</h3>${upEx.map(e=>{
     const days=Math.round((new Date(e.date)-new Date(todayStr()))/864e5);
     return `<div class="item row"><b>${esc(stuName(e.studentId))}</b><span class="tag a">${esc(e.type)}路試</span>
-      <span class="muted">${e.date} · ${esc(e.centre||'')}</span>
+      <span class="muted">${dwd(e.date)} · ${esc(e.centre||'')}</span>
       <span class="right" style="font-weight:800;color:${days<=7?'var(--red)':'var(--amber)'}">${days===0?'今日！':'仲有'+days+'日'}</span></div>`;}).join('')}</div>`:'';
 
   // 12個月收入
@@ -472,12 +583,12 @@ function vDash(){
   let upM='';
   const upCard=up.length?`<div class="card" style="margin-top:12px"><h3>🔜 未來排堂（最近10堂）</h3>${up.map(l=>{
     const m=l.date.slice(0,7); const hdr=(m!==upM)?monthHdr(m):''; upM=m;
-    return hdr+`<div class="item row" style="${lessonRowStyle(l)}">${examBadge(l)}<b>${l.date} ${l.start}</b><span>${esc(stuName(l.studentId))}</span>
+    return hdr+`<div class="item row" style="${lessonRowStyle(l)}">${examBadge(l)}<b>${l.date} ${l.start}</b><span class="muted">${wd(l.date)}</span><span>${esc(stuName(l.studentId))}</span>
       ${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}<span class="muted">${l.dur}小時</span>
       <button class="btn green sm" onclick="waConfirm('${l.id}')">💬</button>
       <button class="btn sm right" onclick="gcal('${l.id}')">📅</button></div>`;}).join('')}</div>`:'';
   const fillCard=needFill.length?`<div class="card" style="margin-top:12px"><h3>📝 上完堂未補填記錄</h3>${needFill.map(l=>`
-    <div class="item row"><b>${esc(stuName(l.studentId))}</b><span class="muted">${l.date} ${l.start}</span>
+    <div class="item row"><b>${esc(stuName(l.studentId))}</b><span class="muted">${dwd(l.date)} ${l.start}</span>
     <button class="btn amber sm right" onclick="formLesson('${l.id}')">補填</button></div>`).join('')}</div>`:'';
 
   const sub=`<div class="row" style="margin-bottom:12px">
@@ -539,7 +650,7 @@ function vStudentDetail(id){
   if(s.examDate){
     const dd=Math.ceil((new Date(s.examDate+'T00:00')-new Date())/86400000);
     const cnt=dd>1?('仲有'+dd+'日'):dd>=0?'就係呢兩日！':'已過';
-    exRow='<br>📅 考試日期：<b style="color:var(--neon)">'+esc(s.examDate)+(s.examTime?' '+esc(s.examTime):'')+'</b>（'+cnt+'）· 租車：'+(s.needRent==='要'?'<b style="color:var(--amber)">要</b>':'不要')
+    exRow='<br>📅 考試日期：<b style="color:var(--neon)">'+esc(s.examDate)+' '+wd(s.examDate)+(s.examTime?' '+esc(s.examTime):'')+'</b>（'+cnt+'）· 租車：'+(s.needRent==='要'?'<b style="color:var(--amber)">要</b>':'不要')
       +' <a onclick="gcalExam(\''+s.id+'\')" style="color:var(--blue);cursor:pointer;font-weight:700">📆 加入日曆</a>';
   }
   return `
@@ -548,16 +659,17 @@ function vStudentDetail(id){
     <div class="row"><b style="font-size:18px">${esc(s.name)}</b>
       <span class="tag ${s.status==='已考牌'?'g':s.status==='暫停'?'r':''}">${esc(s.status||'學緊')}</span>
       <span class="tag a">${esc(s.stage||'G1')}➜${esc(s.target||'G2')}</span>
+      ${s.bde==='已完成'?'<span class="tag g">🎓 BDE已完成</span>':s.bde==='已報讀'?'<span class="tag a">🎓 BDE已報讀</span>':''}
       ${lastTitle?`<span class="tag g">上到：${esc(lastTitle)}</span>`:''}
       <button class="btn grey sm right" onclick="formStudent('${id}')">編輯</button></div>
-    <div class="muted" style="margin-top:6px">📞 ${esc(s.phone||'—')} · ✉️ ${esc(s.email||'—')}<br>📍 ${esc(s.address||'—')}${s.address?` <a onclick="gmapS('${id}')" style="color:var(--blue);cursor:pointer;font-weight:700">🗺️ 導航</a>`:''}<br>🏁 考試中心：${esc(s.centre||'未定')}${exRow}</div>
+    <div class="muted" style="margin-top:6px">📞 ${esc(s.phone||'—')} · ✉️ ${esc(s.email||'—')}<br>📍 ${esc(s.address||'—')}${s.address?` <a onclick="gmapS('${id}')" style="color:var(--blue);cursor:pointer;font-weight:700">🗺️ 導航</a>`:''}<br>🏁 考試中心：${esc(s.centre||'未定')}${s.bde&&s.bde!=='未報'?`<br>🎓 BDE：${esc(s.bde)}${s.bdeDate?'（'+esc(dwd(s.bdeDate))+'）':''}${s.bde==='已報讀'&&s.bdeFee?' · 收費'+money(s.bdeFee):''}`:''}${exRow}</div>
     ${s.notes?`<div style="margin-top:6px;font-size:13px">📝 ${esc(s.notes)}</div>`:''}
     ${(s.photos||[]).length?`<div class="row" style="margin-top:8px">${s.photos.map(p=>`<img class="thumb" src="${p.data}" onclick="viewPhoto('${id}','${p.id}')">`).join('')}</div>`:''}
     ${lastFocus?`<div style="margin-top:8px;padding:8px;background:rgba(240,160,32,.15);border-radius:8px;font-size:13px"><b>⭐ 下堂加強：</b>${esc(lastFocus)}</div>`:''}
   </div>
   <div class="grid2">
     <div class="stat"><div class="l">已上堂數</div><div class="v">${past.length}</div></div>
-    <div class="stat"><div class="l">未收學費</div><div class="v" style="color:${o>0?'var(--red)':'var(--green)'}">${money(Math.max(0,o))}</div></div>
+    <div class="stat"><div class="l">學費結餘</div><div class="v" style="color:${balText(id).c}">${balText(id).t}</div></div>
   </div>
   <div class="row" style="margin:12px 0">
     <button class="btn" onclick="formLesson(null,'${id}')">＋ 排堂/記錄</button>
@@ -583,7 +695,7 @@ function vStudentDetail(id){
     }).join('')}</div>`;
   })()}
   ${exams.length?`<div class="card"><h3>🏁 考試記錄</h3>${exams.map(e=>`
-    <div class="item row"><b>${esc(e.type)}路試</b><span>${e.date}</span><span class="muted">${esc(e.centre||'')}</span>
+    <div class="item row"><b>${esc(e.type)}路試</b><span>${dwd(e.date)}</span><span class="muted">${esc(e.centre||'')}</span>
     <span class="tag ${e.result==='合格'?'g':e.result==='不合格'?'r':'a'}">${esc(e.result)}</span>
     <button class="btn grey sm right" onclick="formExam('${e.id}')">改</button></div>`).join('')}</div>`:''}
   <div class="card"><h3>📖 每堂記錄（新→舊）</h3>
@@ -592,7 +704,7 @@ function vStudentDetail(id){
     const ar=avgR(l);
     return `
     <div class="item" style="${lessonRowStyle(l)}">
-      <div class="row">${examBadge(l)}<b>${l.date} ${l.start}</b>${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}${l.rent?'<span class="tag a">🚗租車</span>':''}<span class="muted">${l.dur}小時 · ${money(l.fee||0)}</span>
+      <div class="row">${examBadge(l)}<b>${l.date} ${l.start}</b><span class="muted">${wd(l.date)}</span>${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}${l.rent?'<span class="tag a">🚗租車</span>':''}<span class="muted">${l.dur}小時 · ${money(l.fee||0)}${(l.paid!=null&&l.paid!==l.fee)?`<span style="color:${l.paid<l.fee?'var(--red)':'var(--green)'}"> ・實收${money(l.paid)}</span>`:''}</span>
         ${l.payStatus?`<span class="tag ${l.payStatus==='未付'?'r':'g'}">${esc(l.payStatus)}</span>`:''}
         ${isPast(l)?'':'<span class="tag a">未上</span>'}
         ${ar!=null?`<span class="tag a">⭐${ar}</span>`:''}
@@ -620,7 +732,7 @@ function vStudentDetail(id){
       return `<tr><td>${k}</td><td>${money(byM[k].due)}</td><td>${money(byM[k].paid)}</td><td style="color:${diff>0?'var(--red)':'var(--green)'};font-weight:700">${money(diff)}</td></tr>`;}).join('');
     return `<div class="card"><h3>📆 每月學費統計</h3>
       <table><tr><th>月份</th><th>應付</th><th>已付</th><th>差額</th></tr>${rows}
-      <tr style="font-weight:800;background:#16291e"><td>總計</td><td>${money(td)}</td><td>${money(tp)}</td><td style="color:${td-tp>0?'var(--red)':'var(--green)'}">${money(td-tp)}</td></tr></table></div>`;
+      <tr style="font-weight:800;background:var(--grey)"><td>總計</td><td>${money(td)}</td><td>${money(tp)}</td><td style="color:${td-tp>0?'var(--red)':'var(--green)'}">${money(td-tp)}</td></tr></table></div>`;
   })()}
   <div class="card"><h3>💰 學費記錄</h3>
   ${pays.length?pays.map(p=>`<div class="item row"><b>${money(p.amount)}</b><span class="muted">${p.date} · ${esc(p.method||'')} ${esc(p.note||'')}</span>
@@ -898,7 +1010,7 @@ function vRoadTest(){
         <div style="font-size:13px;font-weight:600">${i+1}. ${esc(it.zh)}</div>
         ${exp?`<details ${RT._exp&&RT._exp[k]?'open':''} ontoggle="RT._exp=RT._exp||{};RT._exp['${k}']=this.open" style="margin-top:2px">
           <summary style="font-size:11px;cursor:pointer;color:var(--blue);list-style:none">ℹ️ 解釋</summary>
-          <div class="muted" style="font-size:12px;line-height:1.6;white-space:pre-line;padding:4px 8px;background:#16291e;border-radius:8px;margin-top:4px">${esc(exp)}</div></details>`:''}
+          <div class="muted" style="font-size:12px;line-height:1.6;white-space:pre-line;padding:4px 8px;background:var(--input);border-radius:8px;margin-top:4px">${esc(exp)}</div></details>`:''}
         <div class="row" style="margin-top:4px"><span class="muted" style="font-size:11px;flex:1">${esc(it.en)}</span>
           <button class="btn sm" style="background:${m.c?'var(--amber)':'#24402f'};color:${m.c?'#fff':'var(--sub)'}" onclick="rtMark('${k}','c')">✓ ${m.c||''}</button>
           ${m.c?`<button class="btn grey sm" onclick="rtUnmark('${k}','c')" style="color:var(--amber)">−</button>`:''}
@@ -990,7 +1102,7 @@ function vSchedule(){
   return `
   <button class="btn" onclick="formLesson()" style="margin-bottom:12px">＋ 排新堂</button>
   ${needFill.length?`<div class="card"><h3>📝 上完堂未補填記錄</h3>${needFill.map(l=>`
-    <div class="item row"><b>${esc(stuName(l.studentId))}</b><span class="muted">${l.date} ${l.start}</span>
+    <div class="item row"><b>${esc(stuName(l.studentId))}</b><span class="muted">${dwd(l.date)} ${l.start}</span>
     <button class="btn amber sm right" onclick="formLesson('${l.id}')">補填</button></div>`).join('')}</div>`:''}
   <div class="card"><h3>📅 未來排堂</h3>
   <p class="muted" style="margin-top:0">色條：<span style="color:var(--blue)">■G2堂</span>　<span style="color:var(--green)">■G堂</span>　<span style="color:var(--red)">■考試日</span></p>
@@ -998,7 +1110,7 @@ function vSchedule(){
     const m=l.date.slice(0,7); const hdr=(m!==sM)?monthHdr(m):''; sM=m;
     return hdr+`
     <div class="item" style="${lessonRowStyle(l)}">
-      <div class="row">${examBadge(l)}<b>${l.date} ${l.start}</b><span>${esc(stuName(l.studentId))}</span>${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}<span class="muted">${l.dur}小時</span></div>
+      <div class="row">${examBadge(l)}<b>${l.date} ${l.start}</b><span class="muted">${wd(l.date)}</span><span>${esc(stuName(l.studentId))}</span>${l.ltype?`<span class="tag" style="color:${ltypeColor(l)}">${esc(l.ltype)}</span>`:''}<span class="muted">${l.dur}小時</span></div>
       ${l.title?`<div class="muted">📚 ${esc(l.title)}</div>`:''}
       ${l.loc?`<div class="muted">📍 ${esc(l.loc)} <a onclick="gmapL('${l.id}')" style="color:var(--blue);cursor:pointer;font-weight:700">🗺️ 導航</a></div>`:''}
       <div class="row" style="margin-top:6px">
@@ -1036,7 +1148,7 @@ function vMoney(){
   <div class="card" style="margin-top:12px"><div class="row"><h3 style="margin:0">💸 支出記錄</h3>
     <button class="btn red sm right" onclick="formExpense()">＋ 加支出</button></div>
     ${exps.length?exps.map(e=>`<div class="item row"><b>${money(e.amount)}</b><span>${esc(e.name)}</span>
-      <span class="muted right">${e.date}</span>
+      <span class="muted right">${dwd(e.date)}</span>
       <button class="btn red sm" onclick="delExpense('${e.id}')">✕</button></div>`).join(''):'<div class="muted" style="margin-top:8px">未有支出記錄（例：入油、換油、保險、洗車）</div>'}</div>
   ${owedList.length?`<div class="card"><h3>⚠️ 欠學費名單</h3>${owedList.map(x=>`
     <div class="item row"><b>${esc(x.s.name)}</b><span class="muted">📞 ${esc(x.s.phone||'')}</span>
@@ -1046,7 +1158,7 @@ function vMoney(){
   <div class="card"><h3>每月收支盈利</h3><table><tr><th>月份</th><th>收入</th><th>支出</th><th>盈利</th></tr>
     ${keys.map(k=>{const p=(inc[k]||0)-(exp[k]||0);
       return `<tr><td>${k}</td><td>${money(inc[k]||0)}</td><td>${money(exp[k]||0)}</td><td style="color:${p>=0?'var(--green)':'var(--red)'};font-weight:700">${money(p)}</td></tr>`;}).join('')||'<tr><td colspan=4 class=muted>未有記錄</td></tr>'}
-    <tr style="font-weight:800;background:#16291e"><td>總計</td><td>${money(total)}</td><td>${money(totalExp)}</td><td style="color:${total-totalExp>=0?'var(--green)':'var(--red)'}">${money(total-totalExp)}</td></tr></table></div>
+    <tr style="font-weight:800;background:var(--grey)"><td>總計</td><td>${money(total)}</td><td>${money(totalExp)}</td><td style="color:${total-totalExp>=0?'var(--green)':'var(--red)'}">${money(total-totalExp)}</td></tr></table></div>
   <div class="card"><h3>最近收款（30筆）</h3>
     ${pays.length?pays.map(p=>`<div class="item row"><b>${money(p.amount)}</b><span>${esc(stuName(p.studentId))}</span>
       <span class="muted right">${p.date} ${esc(p.method||'')}</span></div>`).join(''):'<div class="muted">未有記錄</div>'}</div>`;
@@ -1416,6 +1528,16 @@ async function mfSave(){
 function vSettings(){
   const usage=(JSON.stringify(DB).length/1048576).toFixed(2);
   return `
+  <div class="card"><h3>🎨 介面主題</h3>
+    <label>款式</label>
+    <div class="row">${Object.keys(THEMES).map(k=>`<button class="btn ${curTheme()===k?'':'grey'} sm" style="flex:1;min-width:96px" onclick="applyTheme('${k}')">${THEMES[k].n}</button>`).join('')}</div>
+    <p class="muted" style="margin:6px 0 0">${esc(THEMES[curTheme()].d)}</p>
+    <label>淺色／深色</label>
+    <div class="row">
+      <button class="btn ${curMode()==='auto'?'':'grey'} sm" style="flex:1" onclick="applyTheme(null,'auto')">🔄 跟系統</button>
+      <button class="btn ${curMode()==='light'?'':'grey'} sm" style="flex:1" onclick="applyTheme(null,'light')">☀️ 淺色</button>
+      <button class="btn ${curMode()==='dark'?'':'grey'} sm" style="flex:1" onclick="applyTheme(null,'dark')">🌙 深色</button></div>
+    <p class="muted" style="margin-bottom:0">「跟系統」＝你部機轉夜間模式，App自動變深色。主題會記落雲端，換機登入自動跟返。</p></div>
   <div class="card"><h3>👤 帳戶</h3>
     <p class="muted">登入中：<b>${esc((window.ACCT&&window.ACCT.email)||'…')}</b>（${ROLE_NAME[myRole()]||'—'}）<br>資料庫：Firebase driving-school（蒙特利爾）</p>
     <button class="btn grey sm" onclick="window.cloudLogout&&window.cloudLogout()">登出</button></div>
@@ -1431,6 +1553,8 @@ function vSettings(){
     <label>G2堂時薪 (CAD/小時)</label><input id="s_g2" type="number" inputmode="decimal" value="${cfg().rates.g2}">
     <label>G堂時薪 (CAD/小時)</label><input id="s_g" type="number" inputmode="decimal" value="${cfg().rates.g}">
     <label>考試日租車費 (CAD)</label><input id="s_rental" type="number" inputmode="decimal" value="${cfg().rates.rental}">
+    <label>🎓 BDE課程預設收費 (CAD)</label><input id="s_bdefee" type="number" inputmode="decimal" value="${cfg().bdeFee}">
+    <button class="btn sm" style="margin-top:8px" onclick="cfg().bdeFee=Number(val('s_bdefee'))||0;save();alert('已更新BDE預設收費')">儲存BDE收費</button>
     <button class="btn sm" style="margin-top:10px" onclick="cfg().rates={g2:Number(val('s_g2'))||0,g:Number(val('s_g'))||0,rental:Number(val('s_rental'))||0};save();alert('已更新收費')">儲存收費</button>
     <p class="muted" style="margin-bottom:0">呢度係<b>全局預設價</b>——學生冇設獨立時薪先會用。每個學生可以喺佢嘅資料入面設自己嘅時薪。考試日收費 = 租車費 + 時數 × 時薪。排堂時金額仍可逐堂自己改。</p></div>
   <div class="card"><h3>🏁 模擬路試合格門檻</h3>
@@ -1492,7 +1616,7 @@ function vSettings(){
     <p class="muted">每個教學項目下面加「步驟」（例：1.路邊停），每個步驟入面有「細動作」（例：a.睇右鏡 b.打右燈）。上堂記錄逐個步驟剔，細動作可展開參考。📋＝複製呢個步驟去其他項目。</p>
     ${cfg().topics.map(t=>{
       const steps=cfg().checks[t]||[];
-      return `<div style="margin-top:12px;padding:10px;background:#16291e;border-radius:10px">
+      return `<div style="margin-top:12px;padding:10px;background:var(--input);border-radius:10px">
       <div class="row"><b>${esc(t)}</b><button class="btn sm right" onclick="formStep('${esc(t)}')">＋ 加步驟</button></div>
       ${steps.length?steps.map((sp,i)=>`<div class="item">
         <div class="row"><b style="font-size:13px">${i+1}. ${esc(sp.s)}</b><span class="muted">${(sp.a||[]).length}個細動作</span>
@@ -1512,7 +1636,7 @@ function vSettings(){
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
     <div class="row" style="margin-top:10px"><button class="btn sm" onclick="checkUpdate(true)">🔄 檢查更新</button></div>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（自動更新檢查已開啟：開App同由背景切返嚟都會自動check，有新版會彈金色橫條）· 2026-07-12</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（多退少補／BDE／星期幾／5款主題）· 2026-08-08　自動更新檢查已開啟</p></div>`;
 }
 
 /* --- 名單管理 --- */
@@ -1713,6 +1837,15 @@ function formStudent(id){
   <label>目標考試中心</label><select id="f_centre"><option value="">未定</option>${cfg().centres.map(x=>`<option ${s.centre===x?'selected':''}>${esc(x)}</option>`).join('')}</select>
   <label>📅 考試日期（學生真實book咗先填，未book留空）</label><input id="f_exdate" type="date" value="${s.examDate||''}">
   <label>🕐 考試時間（可留空，留空Google日曆會出全日事件）</label><input id="f_extime" type="time" value="${s.examTime||''}">
+  <label>🎓 BDE 防禦性駕駛課程（讀完等候期12個月➜8個月）</label>
+  <select id="f_bde" onchange="bdeChanged()">
+    ${['未報','已報讀','已完成'].map(x=>`<option ${(s.bde||'未報')===x?'selected':''}>${x}</option>`).join('')}</select>
+  <div id="bdeRow" style="display:none">
+    <label id="bdeDateLbl">日期</label><input id="f_bdedate" type="date" value="${s.bdeDate||''}">
+    <div id="bdeFeeRow"><label>💵 BDE 收費 (CAD)　<span class="muted" style="font-weight:400">你幫佢報先收，每次可改</span></label>
+      <input id="f_bdefee" type="number" inputmode="decimal" value="${s.bdeFee!=null?s.bdeFee:cfg().bdeFee}" placeholder="${cfg().bdeFee}"></div>
+    <div class="muted" id="bdeMsg" style="margin-top:4px"></div>
+  </div>
   <label>🚗 考試需要租車？</label><select id="f_needrent">
     <option value="不要" ${(s.needRent||'不要')==='不要'?'selected':''}>不要（用自己車考）</option>
     <option value="要" ${s.needRent==='要'?'selected':''}>要（考試日加租車費）</option></select>
@@ -1724,7 +1857,19 @@ function formStudent(id){
     <input type="file" accept="image/*" multiple style="display:none" onchange="addPhoto(this)"></label>
   <div class="row" style="margin-top:14px"><button class="btn" onclick="saveStudent('${id||''}')">儲存</button>
   <button class="btn grey" onclick="closeModal()">取消</button></div>`);
-  renderPhotoList();
+  renderPhotoList(); bdeChanged();
+}
+function bdeChanged(){
+  const v=val('f_bde'); const row=document.getElementById('bdeRow'); if(!row) return;
+  row.style.display=(v==='未報')?'none':'block';
+  const feeRow=document.getElementById('bdeFeeRow'), lbl=document.getElementById('bdeDateLbl'), msg=document.getElementById('bdeMsg');
+  if(v==='已報讀'){
+    feeRow.style.display='block'; lbl.textContent='報讀日期';
+    msg.innerHTML='你幫佢報讀 → 收費會自動計入佢嘅學費結餘（喺帳目頁「收學費」收返）。';
+  }else if(v==='已完成'){
+    feeRow.style.display='none'; lbl.textContent='完成日期';
+    msg.innerHTML='純記錄（學生自己讀過，唔收費）。學生卡會出 🎓BDE 標籤。';
+  }
 }
 function renderPhotoList(){
   const el=document.getElementById('photolist'); if(!el) return;
@@ -1763,6 +1908,8 @@ function saveStudent(id){
     rentFee:val('f_rentfee')?Number(val('f_rentfee')):null,
     stage:val('f_stage'), target:val('f_target'), centre:val('f_centre'), status:val('f_status'), notes:val('f_notes'),
     examDate:val('f_exdate')||'', examTime:val('f_extime')||'', needRent:val('f_needrent'),
+    bde:val('f_bde'), bdeDate:(val('f_bde')!=='未報'?val('f_bdedate'):''),
+    bdeFee:(val('f_bde')==='已報讀'? (Number(val('f_bdefee'))||0) : null),
     photos:TMP_PHOTOS};
   if(id){ Object.assign(stu(id), d); } else { d.id=uid(); DB.students.push(d); }
   closeModal(); save();
@@ -1794,7 +1941,7 @@ function formLesson(id, presetStu){
   <label>學生</label><select id="f_sid" onchange="stuChanged()">${DB.students.map(s=>`<option value="${s.id}" ${s.id===sid?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
   <label>💵 堂類型（自動計價，金額可再改）</label>
   <select id="f_ltype" onchange="typeChanged()">${['G2堂','G堂','G2考試日','G考試日','自訂'].map(x=>`<option ${ltype===x?'selected':''}>${x}</option>`).join('')}</select>
-  <div id="examBox" style="display:none;margin-top:8px;padding:10px;background:#16291e;border:1px solid var(--blue);border-radius:10px">
+  <div id="examBox" style="display:none;margin-top:8px;padding:10px;background:var(--input);border:1px solid var(--blue);border-radius:10px">
     <div style="font-size:13px;font-weight:700;color:var(--neon)">🏁 考試日安排</div>
     <div id="exCentre" class="muted" style="margin-top:6px;font-size:13px;line-height:1.6"></div>
     <label style="display:inline-flex;align-items:center;gap:8px;margin:10px 0 0;font-size:13px;color:var(--ink);cursor:pointer">
@@ -1821,10 +1968,16 @@ function formLesson(id, presetStu){
     <option value="C" ${!durPreset?'selected':''}>自行填寫</option></select>
   <input id="f_durc" type="number" step="0.25" inputmode="decimal" value="${!durPreset?defDur:''}" placeholder="輸入小時數（例：3）" style="display:${!durPreset?'block':'none'};margin-top:6px" oninput="updEnd();calcFee()">
   <div class="muted" style="margin-top:6px">🕐 落堂時間：<b id="f_end">—</b></div>
-  <label>本堂收費 (CAD)</label><input id="f_fee" type="number" inputmode="decimal" value="${defFee}">
+  <label>本堂收費 (CAD)</label><input id="f_fee" type="number" inputmode="decimal" value="${defFee}" oninput="paidDiff()">
   <div class="muted" id="feeBrk" style="margin-top:4px;font-size:13px"></div>
-  <label>💰 堂費狀態</label><select id="f_pay">
+  <div class="muted" id="prepaidMsg" style="margin-top:2px;font-size:13px"></div>
+  <label>💰 堂費狀態</label><select id="f_pay" onchange="payChanged()">
     ${['未付','已付-現金','已付-E-Transfer'].map(x=>`<option ${(l.payStatus||'未付')===x?'selected':''}>${x}</option>`).join('')}</select>
+  <div id="paidRow" style="display:none">
+    <label>💵 實收金額 (CAD)　<span class="muted" style="font-weight:400">收唔足或收多咗就改呢度</span></label>
+    <input id="f_paid" type="number" inputmode="decimal" value="${l.paid!=null?l.paid:''}" oninput="paidDiff()">
+    <div class="muted" id="paidMsg" style="margin-top:4px"></div>
+  </div>
   <label>接送/上堂地點（打3個字自動聯想）</label><input id="f_loc" value="${esc(l.loc||'')}" oninput="acInput(this)" autocomplete="off"><div id="ac_f_loc"></div>
   <label>教學內容（上完堂先填都得）</label>
   <div class="checkrow">${cfg().topics.map(t=>`<label><input type="checkbox" class="f_topic" value="${esc(t)}" ${(l.topics||[]).includes(t)?'checked':''} onchange="renderChecks()">${esc(t)}</label>`).join('')}</div>
@@ -1837,7 +1990,7 @@ function formLesson(id, presetStu){
   <label>⭐ 下堂加強練習</label><textarea id="f_next" rows="2">${esc(l.nextFocus||'')}</textarea>
   <div class="row" style="margin-top:14px"><button class="btn" onclick="saveLesson('${id||''}')">儲存</button>
   <button class="btn grey" onclick="closeModal()">取消</button></div>`);
-  renderChecks();
+  renderChecks(); payChanged(true); prepaidNote();
   if(ltype.includes('考試')){
     const rc=document.getElementById('f_rent');
     rc.checked = (l.rent!=null) ? !!l.rent : (id ? true : (st0.needRent==='要')); // 舊堂未有rent欄位當有租車（同舊計法一致）
@@ -1911,7 +2064,31 @@ function calcFee(){
     bk.innerHTML='🧮 '+t+' ＝ <b style="color:var(--neon)">$'+f+'</b>';
   }
 }
-function stuChanged(){ examSync(); calcFee(); }
+function payChanged(init){
+  const row=document.getElementById('paidRow'); if(!row) return;
+  const on=(val('f_pay')||'').startsWith('已付');
+  row.style.display=on?'block':'none';
+  const pi=document.getElementById('f_paid');
+  if(on&&pi&&!pi.value) pi.value=Number(val('f_fee')||0); // 預設＝應收全數
+  if(!on&&pi&&!init) pi.value='';
+  paidDiff();
+}
+function paidDiff(){
+  const el=document.getElementById('paidMsg'); if(!el) return;
+  const fee=Number(val('f_fee')||0), paid=Number(val('f_paid')||0);
+  if(!(val('f_pay')||'').startsWith('已付')){ el.innerHTML=''; return; }
+  const d=Math.round((paid-fee)*100)/100;
+  el.innerHTML = d===0 ? '✅ 收足全數 '+money(fee)
+    : d<0 ? '應收 '+money(fee)+'　實收 '+money(paid)+'　→ 本堂 <b style="color:var(--red)">尚欠 '+money(-d)+'</b>（自動入學生戶口）'
+          : '應收 '+money(fee)+'　實收 '+money(paid)+'　→ 多收 <b style="color:var(--green)">'+money(d)+'</b>（當預繳，下堂提你）';
+}
+function prepaidNote(){
+  const el=document.getElementById('prepaidMsg'); if(!el) return;
+  const o=owedOf(val('f_sid'));
+  el.innerHTML = o<-0.004 ? '💡 呢個學生有 <b style="color:var(--green)">'+money(-o)+' 預繳</b>（收費照填全數，數自己會扣）'
+    : o>0.004 ? '⚠️ 呢個學生尚欠 <b style="color:var(--red)">'+money(o)+'</b>' : '';
+}
+function stuChanged(){ examSync(); calcFee(); prepaidNote(); }
 function examSync(){
   const box=document.getElementById('examBox'); if(!box) return;
   const isEx=val('f_ltype').includes('考試');
@@ -1954,7 +2131,7 @@ function renderChecks(){
   const selected=[...document.querySelectorAll('.f_topic:checked')].map(x=>x.value);
   const withChecks=selected.filter(t=>cfg().checks[t]&&cfg().checks[t].length);
   box.innerHTML = withChecks.length ? withChecks.map(t=>{
-    return '<div style="margin-top:8px;padding:8px;background:#16291e;border-radius:8px"><b style="font-size:13px">'+esc(t)+'</b>'
+    return '<div style="margin-top:8px;padding:8px;background:var(--input);border-radius:8px"><b style="font-size:13px">'+esc(t)+'</b>'
       +cfg().checks[t].map((sp,i)=>{
         const on=TMP_CHECKS[t]&&TMP_CHECKS[t][sp.s];
         return '<div style="margin-top:6px"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="chk" data-t="'+esc(t)+'" data-i="'+esc(sp.s)+'" '+(on?'checked':'')+'><b style="font-size:13px">'+(i+1)+'. '+esc(sp.s)+'</b></label>'
@@ -1970,7 +2147,7 @@ function renderChecks(){
       const on=(TMP_RATES[t]||0)>=n;
       stars+='<span class="rstar" data-t="'+esc(t)+'" data-n="'+n+'" style="font-size:24px;cursor:pointer;padding:0 2px;color:'+(on?'var(--amber)':'#3c5747')+'">★</span>';
     }
-    return '<div class="row" style="margin-top:4px;padding:6px 8px;background:#16291e;border-radius:8px"><span style="font-size:13px">'+esc(t)+'</span><span class="right">'+stars+'</span></div>';
+    return '<div class="row" style="margin-top:4px;padding:6px 8px;background:var(--input);border-radius:8px"><span style="font-size:13px">'+esc(t)+'</span><span class="right">'+stars+'</span></div>';
   }).join('') : '<div class="muted">剔咗教學內容，評分星星就會喺度出現</div>';
 }
 function onRate(e){
@@ -2008,7 +2185,9 @@ function saveLesson(id){
   const ci=val('f_curr');
   const ratings={};
   topics.forEach(t=>{ if(TMP_RATES[t]) ratings[t]=TMP_RATES[t]; });
-  const d={studentId:val('f_sid'), date, start, dur:durV, fee:Number(val('f_fee')||0),
+  const payS=val('f_pay');
+  const paidV=payS.startsWith('已付') ? (val('f_paid')===''?Number(val('f_fee')||0):Number(val('f_paid')||0)) : null;
+  const d={studentId:val('f_sid'), date, start, dur:durV, fee:Number(val('f_fee')||0), paid:paidV,
     rent: val('f_ltype').includes('考試') ? !!(document.getElementById('f_rent')&&document.getElementById('f_rent').checked) : null,
     exTime: val('f_ltype').includes('考試') ? val('f_extime2') : null,
     travel: val('f_ltype').includes('考試') ? (Number(val('f_travel'))||0) : null,
@@ -2025,8 +2204,10 @@ function saveLesson(id){
   const lid2=id||d.id;
   DB.payments=DB.payments.filter(p=>p.lessonId!==lid2);
   if(d.payStatus&&d.payStatus.startsWith('已付')){
-    DB.payments.push({id:uid(), studentId:d.studentId, lessonId:lid2, amount:d.fee,
-      date:d.date, method:d.payStatus.includes('現金')?'現金':'e-Transfer', note:'堂費（自動記錄）'});
+    const amt=(d.paid!=null?d.paid:d.fee);
+    if(amt>0) DB.payments.push({id:uid(), studentId:d.studentId, lessonId:lid2, amount:amt,
+      date:d.date, method:d.payStatus.includes('現金')?'現金':'e-Transfer',
+      note:'堂費（自動記錄）'+(amt!==d.fee?('・應收'+money(d.fee)):'')});
   }
   closeModal(); save();
   if(!id && new Date(date+'T'+start)>new Date()){
@@ -2473,6 +2654,8 @@ function rebuild(){
   d.students.forEach(s=>{ s.photos = ph.filter(p=>p.sid===s.id).sort((a,b)=>a.i-b.i).map(p=>({id:p.id,data:p.data})); });
   d.config = REM.config? (()=>{try{return JSON.parse(REM.config.j);}catch(e){return {};}})() : {};
   DB = migrate(d);
+  // 主題跟雲端（第一次喺新機登入就自動變返你揀嗰款）
+  if(typeof syncThemeFromCloud==='function') syncThemeFromCloud();
 }
 function safeRender(){
   if(typeof RT!=='undefined' && RT) return;                                     // 路試評分進行中
