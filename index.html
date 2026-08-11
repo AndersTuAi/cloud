@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.5">
+<meta name="app-ver" content="2.6">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -204,6 +204,7 @@ function DEF(){ return {
   cv:4,
   theme:'G', mode:'auto',
   bdeFee:250,
+  biz:{name:'Anders 教車', phone:'(437) 421 833', email:'anderstutu@gmail.com', note:'付完請 WhatsApp 通知我，多謝！🙏'},
   bookUrl:'',
   rt:{c:12,x:3},
   rtExp:{
@@ -332,6 +333,7 @@ function migrate(d){
   // v1.2遷移：考場地址庫補漏 + 學生單一時薪拆做G2/G兩個
   d.config.centreAddr = d.config.centreAddr || {};
   for(const k in def.centreAddr){ if(d.config.centreAddr[k]===undefined) d.config.centreAddr[k]=def.centreAddr[k]; }
+  d.config.biz = Object.assign({}, def.biz, d.config.biz||{});
   d.config.rtExp = d.config.rtExp || {};
   for(const k in def.rtExp){ if(d.config.rtExp[k]===undefined) d.config.rtExp[k]=def.rtExp[k]; }
   (d.students||[]).forEach(s=>{
@@ -468,10 +470,9 @@ function incomeByMonth(){
 }
 function owedOf(sid){
   const fees=DB.lessons.filter(l=>l.studentId===sid && isPast(l)).reduce((a,l)=>a+Number(l.fee||0),0);
-  const s=stu(sid);
-  const bde=(s&&s.bde==='已報讀'&&s.bdeFee)?Number(s.bdeFee):0; // 我幫佢報BDE先計錢
+  // BDE收費而家用「排堂/記錄→BDE課程」入賬，已計入上面fees，唔會重複計
   const paid=DB.payments.filter(p=>p.studentId===sid).reduce((a,p)=>a+Number(p.amount),0);
-  return fees+bde-paid;
+  return fees-paid;
 }
 function balText(sid){ // 學費結餘：正=尚欠、負=尚存（預繳）
   const o=Math.round(owedOf(sid)*100)/100;
@@ -482,6 +483,7 @@ function balText(sid){ // 學費結餘：正=尚欠、負=尚存（預繳）
 /* --- 排堂list顏色系統：左邊色條＋考試日識別＋月份分組 --- */
 function ltypeColor(l){
   const t=l.ltype||'';
+  if(t==='BDE課程') return 'var(--amber)';
   if(t.includes('考試')) return 'var(--red)';
   if(t==='G堂') return 'var(--green)';
   if(t==='G2堂') return 'var(--blue)';
@@ -676,6 +678,7 @@ function vStudentDetail(id){
     <button class="btn green" onclick="formPayment('${id}')">＋ 收學費</button>
     <button class="btn amber" onclick="formExam(null,'${id}')">＋ 考試</button>
     ${s.phone?`<button class="btn green" onclick="wa('${esc(s.phone)}')">💬 WhatsApp</button>`:''}
+    <button class="btn grey" onclick="billForm('${id}')">🧾 匯出賬單</button>
     <button class="btn grey" onclick="report('${id}')">📋 進度報告</button>
     <button class="btn red" onclick="rtStart('${id}')">🏁 模擬路試</button>
   </div>
@@ -1549,6 +1552,12 @@ function vSettings(){
       <label class="btn grey" style="display:inline-block;width:auto;margin:0">📥 匯入備份
         <input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
     </div></div>
+  <div class="card"><h3>🧾 賬單抬頭（印喺學費單上面）</h3>
+    <label>公司／教車名</label><input id="s_bizname" value="${esc(cfg().biz.name||'')}">
+    <label>電話</label><input id="s_bizphone" value="${esc(cfg().biz.phone||'')}">
+    <label>e-Transfer 收款 email（留空就唔顯示）</label><input id="s_bizemail" value="${esc(cfg().biz.email||'')}">
+    <label>賬單結尾一句</label><input id="s_biznote" value="${esc(cfg().biz.note||'')}">
+    <button class="btn sm" style="margin-top:10px" onclick="cfg().biz={name:val('s_bizname'),phone:val('s_bizphone'),email:val('s_bizemail'),note:val('s_biznote')};save();alert('已更新賬單抬頭')">儲存抬頭</button></div>
   <div class="card"><h3>💵 收費設定</h3>
     <label>G2堂時薪 (CAD/小時)</label><input id="s_g2" type="number" inputmode="decimal" value="${cfg().rates.g2}">
     <label>G堂時薪 (CAD/小時)</label><input id="s_g" type="number" inputmode="decimal" value="${cfg().rates.g}">
@@ -1636,7 +1645,7 @@ function vSettings(){
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
     <div class="row" style="margin-top:10px"><button class="btn sm" onclick="checkUpdate(true)">🔄 檢查更新</button></div>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（多退少補／BDE／星期幾／5款主題）· 2026-08-08　自動更新檢查已開啟</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（匯出賬單／BDE課程記錄）· 2026-08-11　自動更新檢查已開啟</p></div>`;
 }
 
 /* --- 名單管理 --- */
@@ -1750,6 +1759,169 @@ function importData(input){
   r.readAsText(f);
 }
 
+/* ================= 🧾 匯出賬單 ================= */
+function billLessons(sid){ // 已上完嘅堂先出賬（未上嘅唔計）
+  return DB.lessons.filter(l=>l.studentId===sid&&isPast(l)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+}
+function paidOfLesson(l){ return (l.payStatus&&l.payStatus.startsWith('已付')) ? (l.paid!=null?Number(l.paid):Number(l.fee||0)) : 0; }
+function billMonths(sid){
+  const m={};
+  billLessons(sid).forEach(l=>{
+    const k=l.date.slice(0,7); m[k]=m[k]||{k, n:0, fee:0, paid:0};
+    m[k].n++; m[k].fee+=Number(l.fee||0); m[k].paid+=paidOfLesson(l);
+  });
+  return Object.values(m).sort((a,b)=>a.k.localeCompare(b.k));
+}
+function billForm(sid){
+  const ms=billMonths(sid);
+  if(!ms.length){ alert('呢個學生未有已上完嘅堂，出唔到賬單。'); return; }
+  BILL_SID=sid;
+  openModal(`<h3>🧾 匯出賬單 — ${esc(stuName(sid))}</h3>
+  <label>揀月份（可以剔多過一個）</label>
+  <div class="row" style="margin-bottom:8px">
+    <button class="btn grey sm" style="flex:1" onclick="billSet(1)">全部剔</button>
+    <button class="btn grey sm" style="flex:1" onclick="billSet(0)">全部唔剔</button>
+    <button class="btn grey sm" style="flex:1" onclick="billSet(2)">只揀有欠數</button></div>
+  ${ms.map(x=>{
+    const owe=x.fee-x.paid;
+    return `<label class="item row" style="cursor:pointer;margin:0">
+      <input type="checkbox" class="bck" value="${x.k}" style="width:auto" checked onchange="billPreview()">
+      <b style="font-size:13.5px">${x.k.slice(0,4)}年${Number(x.k.slice(5,7))}月</b>
+      <span class="muted right">${x.n}堂 · ${money(x.fee)} · ${owe>0.004?'<span style="color:var(--red)">欠'+money(owe)+'</span>':'已找清'}</span></label>`;
+  }).join('')}
+  <label>選項</label>
+  <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_showpaid" style="width:auto" checked onchange="billPreview()"><span style="font-size:13px">顯示已收咗嘅堂（打✓）</span><span class="muted">唔剔＝只列未收</span></label>
+  <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_showpay" style="width:auto" checked onchange="billPreview()"><span style="font-size:13px">顯示付款方式</span></label>
+  <div id="billSum" class="muted" style="margin-top:10px;font-size:13px"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn" style="flex:1" onclick="billPrint()">📄 匯出PDF</button>
+    <button class="btn green" style="flex:1" onclick="billImage()">🖼️ 存做圖片</button></div>
+  <div class="row" style="margin-top:6px">
+    <button class="btn green" style="flex:1" onclick="billWA()">💬 WhatsApp發送</button>
+    <button class="btn grey" onclick="closeModal()">關閉</button></div>`);
+  billPreview();
+}
+let BILL_SID=null;
+function billSet(mode){
+  document.querySelectorAll('.bck').forEach(c=>{
+    if(mode===1) c.checked=true;
+    else if(mode===0) c.checked=false;
+    else{ const m=billMonths(BILL_SID).find(x=>x.k===c.value); c.checked=!!(m&&m.fee-m.paid>0.004); }
+  });
+  billPreview();
+}
+function billData(){
+  const sid=BILL_SID;
+  const picked=[...document.querySelectorAll('.bck')].filter(c=>c.checked).map(c=>c.value);
+  const all=billLessons(sid).filter(l=>picked.includes(l.date.slice(0,7)));
+  const tot=all.reduce((a,l)=>a+Number(l.fee||0),0);
+  const got=all.reduce((a,l)=>a+paidOfLesson(l),0);
+  const showPaid=(document.getElementById('b_showpaid')||{checked:true}).checked;
+  const showPay=(document.getElementById('b_showpay')||{checked:true}).checked;
+  const rows=showPaid?all:all.filter(l=>paidOfLesson(l)<Number(l.fee||0));
+  return {sid, picked, all, rows, tot, got, owe:tot-got, showPay};
+}
+function billPreview(){
+  const el=document.getElementById('billSum'); if(!el) return;
+  const d=billData();
+  el.innerHTML = d.picked.length
+    ? `合計 <b>${money(d.tot)}</b>　已收 <b style="color:var(--green)">${money(d.got)}</b>　尚欠 <b style="color:${d.owe>0.004?'var(--red)':'var(--green)'}">${money(d.owe)}</b>　（${d.all.length}項）`
+    : '⚠️ 未揀月份';
+}
+function lineName(l){
+  if(l.ltype==='BDE課程') return '🎓 BDE防禦性駕駛課程';
+  if((l.ltype||'').includes('考試')) return '<b>'+esc(l.ltype)+'</b>'+(l.rent?' 🚗租車＋':' ')+l.dur+'小時';
+  return esc(l.ltype||'課堂')+' '+l.dur+'小時';
+}
+function billHTML(){
+  const d=billData(); const s=stu(d.sid)||{}; const b=cfg().biz||{};
+  const mk={}; d.rows.forEach(l=>{ const k=l.date.slice(0,7); (mk[k]=mk[k]||[]).push(l); });
+  const period=d.picked.length? (Number(d.picked[0].slice(5,7))+'月'+(d.picked.length>1?(' 至 '+Number(d.picked[d.picked.length-1].slice(5,7))+'月'):'')):'';
+  const grp=Object.keys(mk).sort().map(k=>{
+    const r=mk[k], st=r.reduce((a,l)=>a+Number(l.fee||0),0);
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;background:#eef3f0;color:#1a5c3a;padding:6px 10px;border-radius:7px">
+        <span>${Number(k.slice(5,7))}月　${r.length}項</span><span>${money(st)}</span></div>
+      ${r.map(l=>{
+        const p=paidOfLesson(l), fee=Number(l.fee||0);
+        const st2=p>=fee?'<span style="color:#1a7a45;font-size:10.5px;font-weight:700">✓已收</span>'
+          :(p>0?'<span style="color:#c0392b;font-size:10.5px;font-weight:700">實收'+money(p)+'</span>'
+               :'<span style="color:#c0392b;font-size:10.5px;font-weight:700">未收</span>');
+        return `<div style="display:flex;gap:8px;font-size:12px;padding:6px 10px;border-bottom:1px solid #f0f0f0;align-items:baseline${(l.ltype||'').includes('考試')?';background:#fff6f4':(l.ltype==='BDE課程'?';background:#fffaf0':'')}">
+          <span style="color:#555;width:78px;white-space:nowrap">${l.date.slice(5)} ${wd(l.date).slice(-1)}</span>
+          <span style="flex:1;color:#333">${l.start}　${lineName(l)}</span>
+          <span style="margin-left:auto;font-weight:600;white-space:nowrap">${money(fee)} ${st2}</span></div>`;
+      }).join('')}</div>`;
+  }).join('');
+  return `<div style="max-width:420px;margin:0 auto;background:#fff;color:#222;padding:22px 20px 26px;font-family:-apple-system,'PingFang HK','PingFang TC',sans-serif">
+    <div style="text-align:center">
+      <div style="font-size:30px">🚗</div>
+      <div style="font-size:16px;font-weight:800;margin-top:2px">學費單</div>
+      <div style="font-size:11.5px;color:#888;margin-top:3px;line-height:1.6">${esc(b.name||'')}${b.phone?'　📞 '+esc(b.phone):''}<br>${todayStr()} 發出${period?'　·　'+period:''}</div></div>
+    <div style="background:#f6f6f6;border-radius:10px;padding:12px 14px;margin:15px 0">
+      <div style="font-size:15px;font-weight:800">${esc(s.name||'')}　<span style="font-size:11px;color:#1a5c3a">${esc(s.stage||'')} ➜ ${esc(s.target||'')}</span></div>
+      <div style="font-size:11.5px;color:#666;line-height:1.8;margin-top:4px">${s.phone?'📞 '+esc(s.phone)+'<br>':''}${s.email?'✉️ '+esc(s.email)+'<br>':''}${s.address?'📍 '+esc(s.address):''}</div></div>
+    <div style="display:flex;gap:7px;margin-bottom:14px">
+      <div style="flex:1;border-radius:10px;padding:10px 6px;text-align:center;background:#eef3f0;color:#1a5c3a">
+        <div style="font-size:10.5px;letter-spacing:1px;opacity:.8">總數</div><div style="font-size:19px;font-weight:800">${money(d.tot)}</div></div>
+      <div style="flex:1;border-radius:10px;padding:10px 6px;text-align:center;background:#e8f5ee;color:#1a7a45">
+        <div style="font-size:10.5px;letter-spacing:1px;opacity:.8">已收</div><div style="font-size:19px;font-weight:800">${money(d.got)}</div></div>
+      <div style="flex:1;border-radius:10px;padding:10px 6px;text-align:center;background:#1a5c3a;color:#fff">
+        <div style="font-size:10.5px;letter-spacing:1px;opacity:.85">尚欠</div><div style="font-size:19px;font-weight:800">${money(d.owe)}</div></div></div>
+    ${grp||'<div style="text-align:center;color:#999;font-size:12px;padding:20px 0">（未揀月份）</div>'}
+    ${d.showPay?`<div style="background:#fffbe8;border:1px solid #f0e0a0;border-radius:10px;padding:11px 13px;font-size:11.5px;line-height:1.9;color:#5a4a10">
+      <b>💰 付款方式</b><br>現金${b.email?'　／　e-Transfer：'+esc(b.email):''}<br>${esc(b.note||'')}</div>`:''}
+    <div style="text-align:center;font-size:10.5px;color:#999;margin-top:14px">教車師父管理系統自動產生</div></div>`;
+}
+function billPrint(){
+  const d=billData(); if(!d.picked.length){ alert('請最少剔一個月份'); return; }
+  document.getElementById('printarea').innerHTML=billHTML();
+  setTimeout(()=>window.print(),100);
+}
+function billImage(){
+  const d=billData(); if(!d.picked.length){ alert('請最少剔一個月份'); return; }
+  const box=document.createElement('div');
+  box.style.cssText='position:fixed;left:-9999px;top:0;width:420px;background:#fff';
+  box.innerHTML=billHTML(); document.body.appendChild(box);
+  const go=()=>window.html2canvas(box,{scale:2,backgroundColor:'#fff'}).then(cv=>{
+    box.remove();
+    cv.toBlob(bl=>{
+      const url=URL.createObjectURL(bl);
+      const a=document.createElement('a');
+      a.href=url; a.download='學費單_'+(stu(d.sid)||{name:''}).name+'_'+todayStr()+'.png';
+      a.click();
+      setTimeout(()=>{ window.open(url,'_blank'); URL.revokeObjectURL(url); },300); // iPhone：新分頁長按存相
+    },'image/png');
+  }).catch(e=>{ box.remove(); alert('出圖失敗：'+e.message+'\n可以改用「匯出PDF」。'); });
+  if(window.html2canvas) return go();
+  const sc=document.createElement('script');
+  sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  sc.onload=go;
+  sc.onerror=()=>{ box.remove(); alert('載入出圖工具失敗（可能冇網）。可以改用「匯出PDF」。'); };
+  document.head.appendChild(sc);
+}
+function billWA(){
+  const d=billData(); if(!d.picked.length){ alert('請最少剔一個月份'); return; }
+  const s=stu(d.sid)||{}; const b=cfg().biz||{};
+  if(!s.phone){ alert('呢個學生未有電話號碼'); return; }
+  const mk={}; d.rows.forEach(l=>{ const k=l.date.slice(0,7); (mk[k]=mk[k]||[]).push(l); });
+  let t='🧾 學費單 — '+(b.name||'')+'\n'+s.name+'\n━━━━━━━━━━\n';
+  Object.keys(mk).sort().forEach(k=>{
+    const r=mk[k], st=r.reduce((a,l)=>a+Number(l.fee||0),0);
+    t+='【'+Number(k.slice(5,7))+'月】\n';
+    r.forEach(l=>{
+      const p=paidOfLesson(l), fee=Number(l.fee||0);
+      t+=l.date+' '+wd(l.date).slice(-1)+' '+l.start+'　'+(l.ltype==='BDE課程'?'BDE課程':(l.ltype||'課堂')+' '+l.dur+'hr')
+        +'　$'+fee+(p>=fee?' ✓':(p>0?' (實收$'+p+')':' 未收'))+'\n';
+    });
+    t+='　小計 $'+st+'\n\n';
+  });
+  t+='━━━━━━━━━━\n總數 $'+d.tot+'\n已收 $'+d.got+'\n尚欠 $'+d.owe+'\n━━━━━━━━━━\n';
+  if(d.showPay) t+='付款：現金'+(b.email?' / e-Transfer '+b.email:'')+'\n'+(b.note||'');
+  const dg=(s.phone||'').replace(/\D/g,''); const n=dg.length===10?'1'+dg:dg;
+  window.open('https://wa.me/'+n+'?text='+encodeURIComponent(t),'_blank');
+}
+
 /* ================= Google Calendar ================= */
 function gcalExam(sid){
   const s=stu(sid); if(!s) return;
@@ -1842,7 +2014,7 @@ function formStudent(id){
     ${['未報','已報讀','已完成'].map(x=>`<option ${(s.bde||'未報')===x?'selected':''}>${x}</option>`).join('')}</select>
   <div id="bdeRow" style="display:none">
     <label id="bdeDateLbl">日期</label><input id="f_bdedate" type="date" value="${s.bdeDate||''}">
-    <div id="bdeFeeRow"><label>💵 BDE 收費 (CAD)　<span class="muted" style="font-weight:400">你幫佢報先收，每次可改</span></label>
+    <div id="bdeFeeRow"><label>💵 呢個學生嘅 BDE 價 (CAD)　<span class="muted" style="font-weight:400">開BDE記錄時自動用呢個價</span></label>
       <input id="f_bdefee" type="number" inputmode="decimal" value="${s.bdeFee!=null?s.bdeFee:cfg().bdeFee}" placeholder="${cfg().bdeFee}"></div>
     <div class="muted" id="bdeMsg" style="margin-top:4px"></div>
   </div>
@@ -1865,7 +2037,7 @@ function bdeChanged(){
   const feeRow=document.getElementById('bdeFeeRow'), lbl=document.getElementById('bdeDateLbl'), msg=document.getElementById('bdeMsg');
   if(v==='已報讀'){
     feeRow.style.display='block'; lbl.textContent='報讀日期';
-    msg.innerHTML='你幫佢報讀 → 收費會自動計入佢嘅學費結餘（喺帳目頁「收學費」收返）。';
+    msg.innerHTML='💡 呢度只係<b>記錄狀態</b>。要<b>收費入賬</b>就去「＋排堂/記錄」揀堂類型「🎓BDE課程」開一條記錄（自動用下面呢個價）。';
   }else if(v==='已完成'){
     feeRow.style.display='none'; lbl.textContent='完成日期';
     msg.innerHTML='純記錄（學生自己讀過，唔收費）。學生卡會出 🎓BDE 標籤。';
@@ -1909,7 +2081,7 @@ function saveStudent(id){
     stage:val('f_stage'), target:val('f_target'), centre:val('f_centre'), status:val('f_status'), notes:val('f_notes'),
     examDate:val('f_exdate')||'', examTime:val('f_extime')||'', needRent:val('f_needrent'),
     bde:val('f_bde'), bdeDate:(val('f_bde')!=='未報'?val('f_bdedate'):''),
-    bdeFee:(val('f_bde')==='已報讀'? (Number(val('f_bdefee'))||0) : null),
+    bdeFee:(val('f_bde')==='已報讀'&&val('f_bdefee')!=='' ? Number(val('f_bdefee')) : null),
     photos:TMP_PHOTOS};
   if(id){ Object.assign(stu(id), d); } else { d.id=uid(); DB.students.push(d); }
   closeModal(); save();
@@ -1940,7 +2112,7 @@ function formLesson(id, presetStu){
   openModal(`<h3>${id?'編輯堂記錄':'排新堂'}</h3>
   <label>學生</label><select id="f_sid" onchange="stuChanged()">${DB.students.map(s=>`<option value="${s.id}" ${s.id===sid?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
   <label>💵 堂類型（自動計價，金額可再改）</label>
-  <select id="f_ltype" onchange="typeChanged()">${['G2堂','G堂','G2考試日','G考試日','自訂'].map(x=>`<option ${ltype===x?'selected':''}>${x}</option>`).join('')}</select>
+  <select id="f_ltype" onchange="typeChanged()">${['G2堂','G堂','G2考試日','G考試日','BDE課程','自訂'].map(x=>`<option ${ltype===x?'selected':''}>${x}</option>`).join('')}</select>
   <div id="examBox" style="display:none;margin-top:8px;padding:10px;background:var(--input);border:1px solid var(--blue);border-radius:10px">
     <div style="font-size:13px;font-weight:700;color:var(--neon)">🏁 考試日安排</div>
     <div id="exCentre" class="muted" style="margin-top:6px;font-size:13px;line-height:1.6"></div>
@@ -2008,9 +2180,13 @@ function rateOf(ty,s){
 function rentalOf(s){
   return (s && s.rentFee!=null && s.rentFee!=='') ? Number(s.rentFee) : cfg().rates.rental;
 }
+function bdeFeeOf(s){
+  return (s && s.bdeFee!=null && s.bdeFee!=='') ? Number(s.bdeFee) : Number(cfg().bdeFee||250);
+}
 function autoFee(ty,dur,sid){
   const s=stu(sid!==undefined?sid:val('f_sid'));
   const rate=rateOf(ty,s);
+  if(ty==='BDE課程') return bdeFeeOf(s);           // 固定收費，唔按鐘數計
   if(ty==='G2堂'||ty==='G堂') return rate*dur;
   if(ty==='G2考試日'||ty==='G考試日'){
     const rc=document.getElementById('f_rent');
@@ -2040,6 +2216,7 @@ function typeChanged(){
   const dEl=document.getElementById('f_dur');
   const c=document.getElementById('f_durc');
   if(ty.includes('考試')){ dEl.value='C'; c.style.display='block'; if(!c.value) c.value=3; }
+  else if(ty==='BDE課程'){ dEl.value='C'; c.style.display='block'; c.value=c.value||1; }
   else if(ty!=='自訂'){ dEl.value='2'; c.style.display='none'; }
   const rc=document.getElementById('f_rent');
   if(rc && ty.includes('考試')){ const s=stu(val('f_sid')); rc.checked=(s&&s.needRent==='要'); } // 預設跟學生檔案，可再手動改
@@ -2056,6 +2233,11 @@ function calcFee(){
     const s=stu(val('f_sid'));
     const rate=rateOf(ty,s);
     const isG=(ty==='G堂'||ty==='G考試日');
+    if(ty==='BDE課程'){
+      bk.innerHTML='🎓 BDE防禦性駕駛課程・固定收費 ＝ <b style="color:var(--neon)">'+money(f)+'</b>'
+        +'<br><span style="font-size:12px">讀完等候期 12個月 ➜ 8個月。金額可以喺上面「本堂收費」直接改。</span>';
+      return;
+    }
     let t='('+dur+')小時 × '+(isG?'G($'+rate+')':'G2($'+rate+')');
     if(ty.includes('考試')){
       const rc=document.getElementById('f_rent');
@@ -2200,6 +2382,8 @@ function saveLesson(id){
     score:val('f_score')?Number(val('f_score')):null, problems:val('f_problems'), nextFocus:val('f_next')};
   if(id){ Object.assign(DB.lessons.find(x=>x.id===id), d); }
   else { d.id=uid(); DB.lessons.push(d); }
+  // 開咗BDE記錄 → 學生檔案自動由「未報」轉「已報讀」
+  if(d.ltype==='BDE課程'){ const st=stu(d.studentId); if(st&&(!st.bde||st.bde==='未報')){ st.bde='已報讀'; st.bdeDate=st.bdeDate||d.date; } }
   // 堂費狀態自動處理帳目
   const lid2=id||d.id;
   DB.payments=DB.payments.filter(p=>p.lessonId!==lid2);
