@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.6">
+<meta name="app-ver" content="2.7">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -89,6 +89,43 @@ th{color:var(--sub); font-weight:600; font-size:12px;}
 .thumb{width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:pointer;}
 .pct{font-weight:800;}
 @media(min-width:700px){ .grid2{grid-template-columns:repeat(4,1fr);} }
+/* ===== 📅 月曆 ===== */
+.calwd{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:5px;}
+.calwd b{text-align:center;font-size:10.5px;color:var(--sub);font-weight:700;padding:3px 0;}
+.calwd b.we{color:var(--red);opacity:.85;}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.calcell{border-radius:10px;padding:4px 3px 3px;min-height:76px;background:var(--input);cursor:pointer;position:relative;overflow:hidden;transition:transform .12s;}
+.calcell:active{transform:scale(.95);}
+.calcell.out{opacity:.32;}
+.calcell.sel{box-shadow:0 0 0 2.5px var(--blue);z-index:2;}
+.calcell .cdn{font-size:12px;font-weight:800;line-height:1.15;padding-left:2px;font-variant-numeric:tabular-nums;}
+.calcell.we .cdn{color:var(--red);}
+.calcell.today .cdn{color:#fff;background:var(--red);border-radius:50%;width:19px;height:19px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;}
+.calcell.exam{background:color-mix(in srgb,var(--red) 15%,var(--input));}
+.calcell .cflag{position:absolute;top:0;right:1px;font-size:11px;}
+.calcell .cev{display:flex;align-items:center;gap:2px;margin-top:2.5px;font-size:8.5px;line-height:1.2;overflow:hidden;}
+.calcell .cav{width:14px;height:14px;min-width:14px;border-radius:50%;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.calcell .ctx{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--ink);}
+.calcell .ctx b{font-variant-numeric:tabular-nums;}
+.calcell .cmore{font-size:8px;color:var(--sub);text-align:center;}
+.calcell .cfoot{position:absolute;left:0;right:0;bottom:0;font-size:8.5px;font-weight:700;text-align:center;padding:1.5px 0;color:#fff;}
+.cdh{padding:11px 14px;background:var(--blue);color:var(--btnink);display:flex;align-items:baseline;gap:8px;}
+.cdh b{font-size:16px;} .cdh span{font-size:12px;opacity:.9;}
+.cdhr{font-size:12px;background:rgba(255,255,255,.22);padding:2px 9px;border-radius:20px;font-weight:700;}
+.cli{display:flex;align-items:center;gap:9px;padding:10px 13px;border-bottom:1px solid var(--line);cursor:pointer;}
+.cli:last-child{border-bottom:none;}
+.cli:active{background:var(--grey);}
+.cli .cbar{width:4px;align-self:stretch;border-radius:3px;min-height:30px;}
+.cli .ctm{font-weight:800;font-size:14px;width:46px;font-variant-numeric:tabular-nums;}
+.cli .cinfo{flex:1;min-width:0;}
+.cli .cnm{font-size:13.5px;font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cli .csub{font-size:11px;color:var(--sub);display:block;margin-top:1px;}
+.cli .camt{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;}
+.cli .cgo{color:var(--sub);font-size:15px;}
+.cdfoot{padding:9px 13px;background:var(--grey);display:flex;gap:8px;align-items:center;font-size:12px;}
+.cempty{padding:22px 14px;text-align:center;}
+.cempty p{margin:6px 0 12px;font-size:12.5px;}
+
 /* ===== 各主題排版個性 ===== */
 /* E 和風便利貼：卡似便利貼（微歪＋膠紙＋虛線） */
 html[data-theme="E"] .card{position:relative; border-radius:2px; transform:rotate(-.45deg); margin-bottom:22px; border-color:transparent;}
@@ -203,7 +240,7 @@ function DEF(){ return {
   },
   cv:4,
   theme:'G', mode:'auto',
-  bdeFee:250,
+  bdeFee:250, sleepDays:30,
   biz:{name:'Anders 教車', phone:'(437) 421 833', email:'anderstutu@gmail.com', note:'付完請 WhatsApp 通知我，多謝！🙏'},
   bookUrl:'',
   rt:{c:12,x:3},
@@ -330,6 +367,7 @@ function migrate(d){
   // v5遷移：檢查清單改兩層制（步驟→細動作），舊項目每項變一個步驟
   d.expenses = d.expenses || [];
   d.roadtests = d.roadtests || [];
+  d.packages = d.packages || [];
   // v1.2遷移：考場地址庫補漏 + 學生單一時薪拆做G2/G兩個
   d.config.centreAddr = d.config.centreAddr || {};
   for(const k in def.centreAddr){ if(d.config.centreAddr[k]===undefined) d.config.centreAddr[k]=def.centreAddr[k]; }
@@ -349,7 +387,7 @@ function migrate(d){
   d.config.cv=5;
   return d;
 }
-function blank(){ return {students:[], lessons:[], payments:[], exams:[], expenses:[], roadtests:[], config:DEF()}; }
+function blank(){ return {students:[], lessons:[], payments:[], exams:[], expenses:[], roadtests:[], packages:[], config:DEF()}; }
 function cfg(){ return DB.config; }
 function save(){
   if(window.cloudSave) window.cloudSave();
@@ -471,9 +509,54 @@ function incomeByMonth(){
 function owedOf(sid){
   const fees=DB.lessons.filter(l=>l.studentId===sid && isPast(l)).reduce((a,l)=>a+Number(l.fee||0),0);
   // BDE收費而家用「排堂/記錄→BDE課程」入賬，已計入上面fees，唔會重複計
+  // 套票：買嗰陣一次過入賬，之後扣套票嘅堂fee=0，唔會double count
   const paid=DB.payments.filter(p=>p.studentId===sid).reduce((a,p)=>a+Number(p.amount),0);
-  return fees-paid;
+  return fees+pkgTotalCharged(sid)-paid;
 }
+/* ---------- 🎟️ 課程套票 ---------- */
+function pkgsOf(sid){ return (DB.packages||[]).filter(p=>p.studentId===sid).sort((a,b)=>a.date.localeCompare(b.date)); }
+function pkgUsed(p){ // 由套票開始日起計、喺下一張套票之前、已上完嘅堂
+  const nx=pkgsOf(p.studentId).find(x=>x.date>p.date);
+  return DB.lessons.filter(l=>l.studentId===p.studentId && isPast(l) && l.date>=p.date
+    && (!nx||l.date<nx.date) && l.ltype!=='BDE課程' && !(l.ltype||'').includes('考試')).length;
+}
+function pkgLeft(p){ return Math.max(0, Number(p.total||0)-pkgUsed(p)); }
+function activePkg(sid){ const a=pkgsOf(sid).filter(p=>pkgLeft(p)>0); return a.length?a[a.length-1]:null; }
+function pkgTotalCharged(sid){ return pkgsOf(sid).reduce((a,p)=>a+Number(p.amount||0),0); }
+
+/* ---------- 🚗 里數 ---------- */
+function kmOfMonth(k){ return DB.lessons.filter(l=>(l.date||'').startsWith(k)).reduce((a,l)=>a+Number(l.km||0),0); }
+function kmOfYear(y){ return DB.lessons.filter(l=>(l.date||'').startsWith(y)).reduce((a,l)=>a+Number(l.km||0),0); }
+
+/* ---------- 😴 休眠學生 ---------- */
+function lastLessonOf(sid){
+  const p=DB.lessons.filter(l=>l.studentId===sid&&isPast(l)).sort((a,b)=>b.date.localeCompare(a.date));
+  return p.length?p[0].date:null;
+}
+function sleepingStudents(){
+  const days=Number(cfg().sleepDays||30);
+  const now=new Date(new Date().toDateString());
+  return DB.students.filter(s=>(s.status||'學緊')==='學緊').map(s=>{
+    const hasFuture=DB.lessons.some(l=>l.studentId===s.id&&!isPast(l));
+    if(hasFuture) return null;                       // 有排緊嘅堂就唔算休眠
+    const last=lastLessonOf(s.id);
+    const d=last? Math.floor((now-new Date(last+'T00:00'))/864e5) : null;
+    if(last===null) return {s, last:null, d:null};   // 開咗檔但一堂都未上
+    return d>=days ? {s, last, d} : null;
+  }).filter(Boolean).sort((a,b)=>(b.d==null?9999:b.d)-(a.d==null?9999:a.d));
+}
+
+/* ---------- 🏁 考場合格率 ---------- */
+function centreStats(){
+  const m={};
+  DB.exams.filter(e=>e.result==='合格'||e.result==='不合格').forEach(e=>{
+    const k=e.centre||'（未填）'; m[k]=m[k]||{k,pass:0,fail:0};
+    if(e.result==='合格') m[k].pass++; else m[k].fail++;
+  });
+  return Object.values(m).map(x=>({...x, n:x.pass+x.fail, rate:Math.round(x.pass/(x.pass+x.fail)*100)}))
+    .sort((a,b)=>b.rate-a.rate||b.n-a.n);
+}
+
 function balText(sid){ // 學費結餘：正=尚欠、負=尚存（預繳）
   const o=Math.round(owedOf(sid)*100)/100;
   if(o>0.004) return {t:'尚欠 '+money(o), c:'var(--red)', o};
@@ -503,6 +586,169 @@ function examBadge(l){
 function monthHdr(m){
   return '<div style="margin:12px 0 2px;font-size:12px;font-weight:800;color:var(--neon);letter-spacing:2px;border-bottom:1px dashed var(--line);padding-bottom:4px">'
     +m.slice(0,4)+'年'+Number(m.slice(5,7))+'月</div>';
+}
+/* ================= 😴 休眠學生 ＋ 🏁 考場合格率 ================= */
+function sleepCard(){
+  const list=sleepingStudents();
+  if(!list.length) return '';
+  return `<div class="card" style="margin-top:12px;border-color:var(--amber)"><h3>😴 好耐冇上堂（${cfg().sleepDays}日以上）— 記得跟進</h3>
+  ${list.slice(0,8).map(x=>`<div class="item row">
+    <b onclick="VIEW_STUDENT='${x.s.id}';TAB='students';render()" style="cursor:pointer">${esc(x.s.name)}</b>
+    <span class="tag ${x.d==null||x.d>=60?'r':'a'}">${x.last?('已經 '+x.d+' 日'):'一堂都未上'}</span>
+    <span class="muted">${x.last?('上次 '+dwd(x.last)):''}</span>
+    <span class="right"></span>
+    ${x.s.phone?`<button class="btn green sm" onclick="wa('${esc(x.s.phone)}')">💬 問候</button>`:''}
+    <button class="btn sm" onclick="formLesson(null,'${x.s.id}')">＋ 排堂</button></div>`).join('')}
+  ${list.length>8?`<p class="muted" style="margin-bottom:0">仲有 ${list.length-8} 個…</p>`:''}</div>`;
+}
+function centreCard(){
+  const cs=centreStats();
+  if(!cs.length) return '';
+  const tot=cs.reduce((a,c)=>({p:a.p+c.pass,n:a.n+c.n}),{p:0,n:0});
+  return `<div class="card"><h3>🏁 考場合格率（你嘅學生實際成績）</h3>
+    <table><tr><th>考試中心</th><th class="num" style="text-align:right">考過</th><th style="text-align:right">合格</th><th style="text-align:right">合格率</th></tr>
+    ${cs.map(c=>`<tr><td>${esc(c.k)}</td><td style="text-align:right">${c.n}</td><td style="text-align:right">${c.pass}</td>
+      <td style="text-align:right"><b style="color:${c.rate>=70?'var(--green)':c.rate>=50?'var(--amber)':'var(--red)'}">${c.rate}%</b></td></tr>`).join('')}
+    <tr style="font-weight:800;background:var(--grey)"><td>全部</td><td style="text-align:right">${tot.n}</td><td style="text-align:right">${tot.p}</td>
+      <td style="text-align:right">${tot.n?Math.round(tot.p/tot.n*100):0}%</td></tr></table>
+    <p class="muted" style="margin-bottom:0">樣本越多越準。合格率高嘅考場可以優先建議俾學生，亦可以做宣傳賣點。</p></div>`;
+}
+
+/* ================= 🎟️ 課程套票 ================= */
+function pkgCard(sid){
+  const ps=pkgsOf(sid);
+  const act=activePkg(sid);
+  return `<div class="card"><h3>🎟️ 課程套票</h3>
+  ${ps.length?ps.slice().reverse().map(p=>{
+    const used=pkgUsed(p), left=pkgLeft(p);
+    const pct=p.total?Math.min(100,Math.round(used/p.total*100)):0;
+    const done=left<=0;
+    return `<div class="item">
+      <div class="row"><b>${esc(p.name||'套票')}</b>
+        <span class="tag ${done?'r':'g'}">${done?'✅ 用晒':'仲有 '+left+' 堂'}</span>
+        <span class="muted">${dwd(p.date)} · ${money(p.amount||0)}</span>
+        <span class="right"></span>
+        <button class="btn grey sm" onclick="pkgForm('${sid}','${p.id}')">✏️</button>
+        <button class="btn red sm" onclick="if(confirm('刪除呢張套票？（學生結餘會扣返呢筆錢）'))delPkg('${p.id}')">✕</button></div>
+      <div style="background:var(--grey);border-radius:20px;height:8px;margin-top:5px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${done?'var(--red)':'var(--green)'};border-radius:20px"></div></div>
+      <div class="muted" style="margin-top:3px">用咗 ${used} / ${p.total} 堂${p.bonus?'（含送 '+p.bonus+' 堂）':''}${done?' · 用晒喇，記得問佢續唔續':''}</div>
+    </div>`;}).join(''):'<p class="muted">未有套票。開套票＝一次過入賬，之後每堂自動扣，收費當$0。</p>'}
+  <button class="btn sm" style="margin-top:8px" onclick="pkgForm('${sid}')">＋ 開套票</button>
+  ${act?`<p class="muted" style="margin-bottom:0">💡 而家有效：仲有 <b>${pkgLeft(act)}</b> 堂</p>`:''}</div>`;
+}
+function pkgForm(sid,pid){
+  const p=pid?(DB.packages||[]).find(x=>x.id===pid):{};
+  openModal(`<h3>${pid?'編輯':'開'}課程套票</h3>
+  <label>套票名（自己改，會印喺賬單）</label><input id="pk_name" value="${esc(p.name||'')}" placeholder="例：10堂套票">
+  <label>開始日期</label><input id="pk_date" type="date" value="${p.date||todayStr()}">
+  <label>包幾多堂（唔計送）</label><input id="pk_base" type="number" inputmode="numeric" value="${p.base!=null?p.base:10}" oninput="pkCalc()">
+  <label>送幾多堂（冇就填0）</label><input id="pk_bonus" type="number" inputmode="numeric" value="${p.bonus!=null?p.bonus:0}" oninput="pkCalc()">
+  <label>💵 收幾多錢 (CAD)</label><input id="pk_amt" type="number" inputmode="decimal" value="${p.amount!=null?p.amount:''}" placeholder="例：550" oninput="pkCalc()">
+  <div class="muted" id="pk_msg" style="margin-top:6px"></div>
+  <div class="row" style="margin-top:14px"><button class="btn" onclick="savePkg('${sid}','${pid||''}')">儲存</button>
+  <button class="btn grey" onclick="closeModal()">取消</button></div>`);
+  pkCalc();
+}
+function pkCalc(){
+  const el=document.getElementById('pk_msg'); if(!el) return;
+  const b=Number(val('pk_base'))||0, bo=Number(val('pk_bonus'))||0, amt=Number(val('pk_amt'))||0;
+  const tot=b+bo;
+  el.innerHTML= tot? ('總共 <b>'+tot+' 堂</b>'+(bo?'（'+b+'堂＋送'+bo+'堂）':'')+(amt?('　平均每堂 <b style="color:var(--neon)">'+money(Math.round(amt/tot*100)/100)+'</b>'):'')) : '';
+}
+function savePkg(sid,pid){
+  const base=Number(val('pk_base'))||0, bonus=Number(val('pk_bonus'))||0;
+  if(!base){ alert('請填包幾多堂'); return; }
+  const d={studentId:sid, name:val('pk_name')||((base+bonus)+'堂套票'), date:val('pk_date')||todayStr(),
+    base, bonus, total:base+bonus, amount:Number(val('pk_amt'))||0};
+  if(pid){ Object.assign((DB.packages||[]).find(x=>x.id===pid), d); }
+  else { d.id=uid(); DB.packages=DB.packages||[]; DB.packages.push(d); }
+  closeModal(); save();
+}
+function delPkg(id){ DB.packages=(DB.packages||[]).filter(p=>p.id!==id); save(); }
+
+/* ================= 📅 月曆表（頭像時間軸） ================= */
+let CAL={y:null,m:null}, CALSEL=null;
+function calInit(){ if(CAL.y==null){ const n=new Date(); CAL={y:n.getFullYear(),m:n.getMonth()+1}; } if(!CALSEL) CALSEL=todayStr(); }
+function calMove(k){
+  if(k===0){ const n=new Date(); CAL={y:n.getFullYear(),m:n.getMonth()+1}; CALSEL=todayStr(); }
+  else{ let m=CAL.m+k,y=CAL.y; if(m<1){m=12;y--;} if(m>12){m=1;y++;} CAL={y,m}; }
+  render();
+}
+function calPick(k){ CALSEL=k; render(); }
+function lessonsOn(k){ return DB.lessons.filter(l=>l.date===k).sort((a,b)=>(a.start||'').localeCompare(b.start||'')); }
+function shortName(n){ return (n||'').split(/[ ,]/)[0].slice(0,4); }
+function iniName(n){ const t=(n||'?').trim(); return t[0].toUpperCase(); }
+function newLessonOn(k){ NEWDATE=k; formLesson(); }
+let NEWDATE=null;
+function vCalendar(){
+  calInit();
+  const {y,m}=CAL;
+  const first=new Date(y,m-1,1), st=new Date(first); st.setDate(1-first.getDay());
+  const td=todayStr();
+  let cells='';
+  for(let i=0;i<42;i++){
+    const dt=new Date(st.getTime()); dt.setDate(st.getDate()+i);
+    const k=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+    const out=dt.getMonth()+1!==m, ev=lessonsOn(k), we=dt.getDay()===0||dt.getDay()===6;
+    const ex=ev.some(e=>(e.ltype||'').includes('考試'));
+    let cls='calcell'+(out?' out':'')+(we?' we':'')+(k===td?' today':'')+(k===CALSEL?' sel':'')+(ex&&!out?' exam':'');
+    let inner='<div class="cdn">'+dt.getDate()+'</div>';
+    if(ex&&!out) inner='<span class="cflag">🏁</span>'+inner;
+    if(ev.length&&!out){
+      inner+=ev.slice(0,3).map(e=>'<div class="cev"><span class="cav" style="background:'+ltypeColor(e)+'">'+esc(iniName(stuName(e.studentId)))+'</span>'
+        +'<span class="ctx"><b>'+esc(e.start||'')+'</b> '+esc(shortName(stuName(e.studentId)))+'</span></div>').join('');
+      if(ev.length>3) inner+='<div class="cmore">＋'+(ev.length-3)+'</div>';
+      const hrs=Math.round(ev.reduce((a,e)=>a+Number(e.dur||0),0)*10)/10;
+      inner+='<div class="cfoot" style="background:'+(ex?'var(--red)':'var(--blue)')+'">'+ev.length+'堂 · '+hrs+'h</div>';
+      inner='<div style="padding-bottom:12px">'+inner+'</div>';
+    }
+    cells+='<div class="'+cls+'" onclick="calPick(\''+k+'\')">'+inner+'</div>';
+  }
+  const mk=y+'-'+pad(m);
+  const mo=DB.lessons.filter(l=>(l.date||'').startsWith(mk));
+  const hrs=Math.round(mo.reduce((a,e)=>a+Number(e.dur||0),0)*10)/10;
+  const inc=mo.reduce((a,e)=>a+Number(e.fee||0),0);
+  const exs=mo.filter(e=>(e.ltype||'').includes('考試')).length;
+  const km=kmOfMonth(mk);
+  // 當日
+  const ev=lessonsOn(CALSEL); const dt2=new Date(CALSEL+'T00:00');
+  const dh=Math.round(ev.reduce((a,e)=>a+Number(e.dur||0),0)*10)/10;
+  const di=ev.reduce((a,e)=>a+Number(e.fee||0),0);
+  const dayBody = ev.length
+    ? ev.map(e=>{
+        const p=paidOfLesson(e), fee=Number(e.fee||0);
+        return '<div class="cli" onclick="formLesson(\''+e.id+'\')">'
+        +'<span class="cbar" style="background:'+ltypeColor(e)+'"></span>'
+        +'<span class="ctm">'+esc(e.start||'')+'</span>'
+        +'<span class="cinfo"><span class="cnm">'+((e.ltype||'').includes('考試')?'🏁':(e.ltype==='BDE課程'?'🎓':''))+esc(stuName(e.studentId))+'</span>'
+        +'<span class="csub">'+esc(e.ltype||'')+' · '+(e.dur||0)+'小時'+(e.km?' · '+e.km+'km':'')+' · '
+        +(p>=fee&&fee>0?'<span style="color:var(--green)">✓已收</span>':(p>0?'<span style="color:var(--amber)">實收'+money(p)+'</span>':(fee>0?'<span style="color:var(--red)">未收</span>':'🎟️套票')))
+        +'</span></span><span class="camt">'+money(fee)+'</span><span class="cgo">›</span></div>';
+      }).join('')
+      +'<div class="cdfoot"><span class="muted">當日</span><b>'+ev.length+'</b>堂<span class="muted">·</span><b>'+dh+'</b>小時<span class="muted">·</span><b>'+money(di)+'</b>'
+      +'<button class="btn sm right" onclick="newLessonOn(\''+CALSEL+'\')">＋ 排堂</button></div>'
+    : '<div class="cempty"><div style="font-size:30px">🌤️</div><p class="muted">呢日冇排堂，得閒！</p>'
+      +'<button class="btn" onclick="newLessonOn(\''+CALSEL+'\')">＋ 喺呢日排新堂</button></div>';
+  return `
+  <div class="row" style="margin-bottom:10px">
+    <div style="font-size:20px;font-weight:800">${m}月 <span class="muted" style="font-size:13px">${y}</span></div>
+    <span class="right"></span>
+    <button class="btn grey sm" onclick="calMove(-1)">‹</button>
+    <button class="btn grey sm" onclick="calMove(0)">今月</button>
+    <button class="btn grey sm" onclick="calMove(1)">›</button></div>
+  <div class="row" style="gap:7px;margin-bottom:12px">
+    <div class="stat" style="flex:1;text-align:center"><div class="l">本月堂數</div><div class="v">${mo.length}</div></div>
+    <div class="stat" style="flex:1;text-align:center"><div class="l">教學時數</div><div class="v">${hrs}h</div></div>
+    <div class="stat" style="flex:1;text-align:center"><div class="l">預計收入</div><div class="v" style="color:var(--green)">${money(inc)}</div></div>
+    <div class="stat" style="flex:1;text-align:center"><div class="l">${km?'里數':'🏁考試'}</div><div class="v" style="color:${km?'var(--ink)':'var(--red)'}">${km?km+'km':exs}</div></div></div>
+  <div class="card" style="padding:8px">
+    <div class="calwd">${['日','一','二','三','四','五','六'].map((w,i)=>`<b class="${i===0||i===6?'we':''}">${w}</b>`).join('')}</div>
+    <div class="calgrid">${cells}</div></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="cdh"><b>${dt2.getMonth()+1}月${dt2.getDate()}日</b><span>${wd(CALSEL)}${CALSEL===td?'・今日':''}</span>
+      <span class="right cdhr">${ev.length}堂 · ${dh}h</span></div>
+    ${dayBody}</div>`;
 }
 function vDash(){
   const now=new Date(); const thisM=now.getFullYear()+'-'+pad(now.getMonth()+1);
@@ -595,14 +841,16 @@ function vDash(){
 
   const sub=`<div class="row" style="margin-bottom:12px">
     <button class="btn ${DASHSUB==='feed'?'':'grey'}" style="flex:1" onclick="DASHSUB='feed';render()">📋 動態</button>
+    <button class="btn ${DASHSUB==='cal'?'':'grey'}" style="flex:1" onclick="DASHSUB='cal';render()">📅 月曆</button>
     <button class="btn ${DASHSUB==='charts'?'':'grey'}" style="flex:1" onclick="DASHSUB='charts';render()">📈 圖表</button></div>`;
 
+  if(DASHSUB==='cal') return sub + vCalendar();
   if(DASHSUB==='feed'){
     return sub
       + (todayCard||'<div class="card"><h3>🗓️ 今日／聽日堂表</h3><div class="muted">今日同聽日未有排堂</div></div>')
-      + fillCard + upCard + exCard;
+      + fillCard + sleepCard() + upCard + exCard;
   }
-  return sub + `
+  return sub + centreCard() + `
   <div class="grid2">
     <div class="stat"><div class="l">本月收入</div><div class="v" style="color:var(--green)">${money(inc[thisM]||0)}</div></div>
     <div class="stat"><div class="l">未收學費</div><div class="v" style="color:${owedTotal>0?'var(--red)':'var(--ink)'}">${money(owedTotal)}</div></div>
@@ -679,9 +927,11 @@ function vStudentDetail(id){
     <button class="btn amber" onclick="formExam(null,'${id}')">＋ 考試</button>
     ${s.phone?`<button class="btn green" onclick="wa('${esc(s.phone)}')">💬 WhatsApp</button>`:''}
     <button class="btn grey" onclick="billForm('${id}')">🧾 匯出賬單</button>
+    <button class="btn grey" onclick="shareForm('${id}')">🔗 自助連結${s.shareToken?'✓':''}</button>
     <button class="btn grey" onclick="report('${id}')">📋 進度報告</button>
     <button class="btn red" onclick="rtStart('${id}')">🏁 模擬路試</button>
   </div>
+  ${pkgCard(id)}
   ${(()=>{
     const rts=DB.roadtests.filter(r=>r.studentId===id).sort((a,b)=>b.date.localeCompare(a.date));
     if(!rts.length) return '';
@@ -1141,7 +1391,7 @@ function vMoney(){
   const total=DB.payments.reduce((a,p)=>a+Number(p.amount),0);
   const totalExp=(DB.expenses||[]).reduce((a,e)=>a+Number(e.amount),0);
   const incM=inc[thisM]||0, expM=exp[thisM]||0, profitM=incM-expM;
-  return myCommCard()+`
+  return myCommCard()+kmCard()+`
   <div class="grid2">
     <div class="stat"><div class="l">本月收入</div><div class="v" style="color:var(--green)">${money(incM)}</div></div>
     <div class="stat"><div class="l">本月支出</div><div class="v" style="color:var(--red)">${money(expM)}</div></div>
@@ -1645,7 +1895,8 @@ function vSettings(){
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
     <div class="row" style="margin-top:10px"><button class="btn sm" onclick="checkUpdate(true)">🔄 檢查更新</button></div>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（匯出賬單／BDE課程記錄）· 2026-08-11　自動更新檢查已開啟</p></div>`;
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（月曆／重複排堂／里數／自助連結／套票／休眠提醒／考場合格率）· 2026-08-11
+    <br><label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">😴 幾多日冇上堂算休眠<input id="s_sleep" type="number" style="width:70px" value="${cfg().sleepDays}"><button class="btn sm" onclick="cfg().sleepDays=Number(val('s_sleep'))||30;save()">存</button></label></p></div>`;
 }
 
 /* --- 名單管理 --- */
@@ -1757,6 +2008,170 @@ function importData(input){
       if(confirm('匯入會覆蓋目前雲端資料（學生'+d.students.length+'人）。繼續？')){ DB=migrate(d); save(); alert('匯入成功！資料上傳緊雲端，右上角見到✅先算完成。'); }
     }catch(e){ alert('檔案格式唔啱，請揀返之前匯出嘅備份檔。'); } };
   r.readAsText(f);
+}
+
+/* ================= 🔗 學生自助連結 ================= */
+function shareData(sid){
+  const s=stu(sid); if(!s) return null;
+  const past=DB.lessons.filter(l=>l.studentId===sid&&isPast(l)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  const fut=DB.lessons.filter(l=>l.studentId===sid&&!isPast(l)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  const covered=[...new Set(past.flatMap(l=>l.topics||[]))];
+  const pk=activePkg(sid);
+  const b=cfg().biz||{};
+  return {
+    v:1, at:todayStr(),
+    biz:{name:b.name||'',phone:b.phone||'',email:b.email||'',note:b.note||''},
+    stu:{name:s.name,stage:s.stage||'',target:s.target||'',centre:s.centre||'',
+      examDate:s.examDate||'',examTime:s.examTime||'',bde:s.bde||'未報'},
+    stats:{lessons:past.length, hours:Math.round(past.reduce((a,l)=>a+Number(l.dur||0),0)*10)/10,
+      covered, notCovered:cfg().topics.filter(t=>!covered.includes(t)),
+      lastFocus:(past.length&&past[past.length-1].nextFocus)||''},
+    pkg: pk? {name:pk.name,total:pk.total,left:pkgLeft(pk)} : null,
+    bill: past.map(l=>({d:l.date,t:l.start,ty:l.ltype||'',hr:l.dur||0,fee:Number(l.fee||0),paid:paidOfLesson(l)})),
+    pkgCharges: pkgsOf(sid).map(p=>({d:p.date,name:p.name,amt:Number(p.amount||0)})),
+    owe: Math.round(owedOf(sid)*100)/100,
+    next: fut.slice(0,3).map(l=>({d:l.date,t:l.start,ty:l.ltype||''}))
+  };
+}
+function shareForm(sid){
+  const s=stu(sid); if(!s) return;
+  const cur=s.shareToken;
+  const link=cur? (location.origin+location.pathname+'?s='+cur) : '';
+  openModal(`<h3>🔗 學生自助連結 — ${esc(s.name)}</h3>
+  <p class="muted">send條link俾學生，佢<b>唔使登入</b>就睇到自己嘅進度同賬單（唯讀，改唔到嘢）。條link係隨機碼，估唔到；你隨時可以停用。</p>
+  ${cur?`<input readonly value="${link}" onclick="this.select()">
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="navigator.clipboard.writeText('${link}').then(()=>alert('已複製'))">📄 複製</button>
+      <button class="btn green" onclick="shareWA('${sid}')">💬 WhatsApp</button>
+      <button class="btn grey" onclick="window.open('${link}','_blank')">👁 預覽</button></div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn grey sm" style="flex:1" onclick="shareMake('${sid}',true)">🔄 更新內容（有新堂就撳）</button>
+      <button class="btn red sm" onclick="shareStop('${sid}')">停用</button></div>
+    <p class="muted" style="margin-bottom:0">⚠️ 內容係<b>快照</b>——上完新堂記得撳「更新內容」，學生先睇到最新。</p>`
+   :`<div class="row"><button class="btn" onclick="shareMake('${sid}')">✨ 產生連結</button>
+     <button class="btn grey" onclick="closeModal()">取消</button></div>`}`);
+}
+async function shareMake(sid,quiet){
+  const s=stu(sid); if(!s) return;
+  const token=s.shareToken||(uid()+Math.random().toString(36).slice(2,8));
+  const ok=await window.publishShare(token, shareData(sid));
+  if(!ok) return;
+  if(!s.shareToken){ s.shareToken=token; save(); }
+  if(quiet){ alert('✅ 已更新，學生睇到最新內容'); }
+  shareForm(sid);
+}
+function shareStop(sid){
+  const s=stu(sid); if(!s||!s.shareToken) return;
+  if(!confirm('停用條連結？學生開返會見到「連結已失效」。')) return;
+  window.removeShare(s.shareToken); s.shareToken=null; save(); closeModal();
+}
+function shareWA(sid){
+  const s=stu(sid); if(!s||!s.shareToken) return;
+  if(!s.phone){ alert('呢個學生未有電話號碼'); return; }
+  const link=location.origin+location.pathname+'?s='+s.shareToken;
+  const t='你好 '+s.name+'！\n呢條係你嘅學車進度同學費紀錄，隨時都可以開嚟睇：\n'+link+'\n（唔使登入，只有你有呢條link）';
+  const d=(s.phone||'').replace(/\D/g,''); const n=d.length===10?'1'+d:d;
+  window.open('https://wa.me/'+n+'?text='+encodeURIComponent(t),'_blank');
+}
+/* --- 學生端畫面（?s=token） --- */
+function renderShare(d){
+  const st=d.stu, b=d.biz;
+  const tot=d.bill.reduce((a,l)=>a+l.fee,0)+ (d.pkgCharges||[]).reduce((a,p)=>a+p.amt,0);
+  const got=d.bill.reduce((a,l)=>a+l.paid,0);
+  const mk={}; d.bill.forEach(l=>{ const k=l.d.slice(0,7); (mk[k]=mk[k]||[]).push(l); });
+  const exD=st.examDate? Math.ceil((new Date(st.examDate+'T00:00')-new Date(new Date().toDateString()))/864e5):null;
+  document.body.innerHTML=`
+  <div style="max-width:460px;margin:0 auto;padding:16px 14px 40px">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:32px">🚗</div>
+      <div style="font-size:17px;font-weight:800">${esc(st.name)}</div>
+      <div class="muted" style="font-size:12px">${esc(b.name||'')}${b.phone?'　📞 '+esc(b.phone):''}<br>學車進度同學費紀錄　·　更新於 ${esc(d.at)}</div></div>
+    <div class="row" style="gap:7px;margin-bottom:12px">
+      <div class="stat" style="flex:1;text-align:center"><div class="l">已上堂數</div><div class="v">${d.stats.lessons}</div></div>
+      <div class="stat" style="flex:1;text-align:center"><div class="l">總時數</div><div class="v">${d.stats.hours}h</div></div>
+      <div class="stat" style="flex:1;text-align:center"><div class="l">尚欠</div><div class="v" style="color:${d.owe>0?'var(--red)':'var(--green)'}">${money(Math.max(0,d.owe))}</div></div></div>
+    ${st.examDate?`<div class="card"><h3>🏁 你嘅路試</h3>
+      <div class="row"><b style="font-size:15px">${esc(st.examDate)} ${wd(st.examDate)}${st.examTime?' '+esc(st.examTime):''}</b>
+      <span class="tag ${exD<=7?'r':'a'} right">${exD>0?'仲有 '+exD+' 日':(exD===0?'今日！':'已過')}</span></div>
+      <div class="muted">考試中心：${esc(st.centre||'未定')}　·　目標：${esc(st.target||'')}</div></div>`:''}
+    ${d.pkg?`<div class="card"><h3>🎟️ 你嘅套票</h3><div class="row"><b>${esc(d.pkg.name)}</b>
+      <span class="tag g right">仲有 ${d.pkg.left} / ${d.pkg.total} 堂</span></div></div>`:''}
+    ${d.next.length?`<div class="card"><h3>📅 未來排堂</h3>${d.next.map(n=>`<div class="item row"><b>${esc(n.d)}</b><span class="muted">${wd(n.d)}</span><span>${esc(n.t)}</span><span class="tag right">${esc(n.ty)}</span></div>`).join('')}</div>`:''}
+    <div class="card"><h3>📚 學過嘅項目（${d.stats.covered.length}）</h3>
+      <div class="row">${d.stats.covered.map(t=>`<span class="tag g">✓ ${esc(t)}</span>`).join('')||'<span class="muted">未有記錄</span>'}</div>
+      ${d.stats.notCovered.length?`<label>仲未學到</label><div class="row">${d.stats.notCovered.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+      ${d.stats.lastFocus?`<div style="margin-top:8px;padding:8px;background:var(--input);border-radius:8px;font-size:13px"><b>⭐ 下堂加強：</b>${esc(d.stats.lastFocus)}</div>`:''}</div>
+    <div class="card"><h3>💵 學費紀錄</h3>
+      <div class="row" style="gap:7px;margin-bottom:8px">
+        <div class="stat" style="flex:1;text-align:center"><div class="l">總數</div><div class="v" style="font-size:17px">${money(tot)}</div></div>
+        <div class="stat" style="flex:1;text-align:center"><div class="l">已收</div><div class="v" style="font-size:17px;color:var(--green)">${money(got)}</div></div>
+        <div class="stat" style="flex:1;text-align:center"><div class="l">尚欠</div><div class="v" style="font-size:17px;color:${d.owe>0?'var(--red)':'var(--green)'}">${money(Math.max(0,d.owe))}</div></div></div>
+      ${(d.pkgCharges||[]).map(p=>`<div class="item row"><span class="muted">${esc(p.d)}</span><b>🎟️ ${esc(p.name)}</b><span class="right">${money(p.amt)}</span></div>`).join('')}
+      ${Object.keys(mk).sort().map(k=>`<div style="margin-top:8px"><div class="tag">${k.slice(0,4)}年${Number(k.slice(5,7))}月</div>
+        ${mk[k].map(l=>`<div class="item row" style="font-size:12.5px"><span class="muted">${l.d.slice(5)} ${wd(l.d).slice(-1)}</span><span>${esc(l.t)}</span>
+          <span>${esc(l.ty)}</span><span class="right">${money(l.fee)}</span>
+          ${l.paid>=l.fee&&l.fee>0?'<span class="tag g">✓</span>':(l.fee===0?'<span class="tag">🎟️</span>':'<span class="tag r">未收</span>')}</div>`).join('')}</div>`).join('')}
+      ${b.email?`<p class="muted" style="margin-bottom:0">付款：現金 ／ e-Transfer ${esc(b.email)}<br>${esc(b.note||'')}</p>`:''}</div>
+    <div class="muted" style="text-align:center;font-size:11px;margin-top:14px">呢頁只有你有連結先睇到　·　教車師父管理系統</div>
+  </div>`;
+}
+
+/* ================= 🚗 里數（報稅用） ================= */
+function kmCard(){
+  const y=String(new Date().getFullYear());
+  const yr=kmOfYear(y), thisM=y+'-'+pad(new Date().getMonth()+1);
+  const noKm=DB.lessons.filter(l=>isPast(l)&&(l.date||'').startsWith(y)&&!l.km).length;
+  return `<div class="card"><h3>🚗 行車里數（報稅用）</h3>
+    <div class="row"><span class="muted">${y}年至今</span><b class="right" style="font-size:20px">${yr} km</b></div>
+    <div class="row"><span class="muted">本月</span><b class="right">${kmOfMonth(thisM)} km</b></div>
+    ${noKm?`<p class="muted" style="color:var(--amber);margin-bottom:6px">⚠️ 今年有 ${noKm} 堂未填里數，記得補返先出報稅表</p>`:''}
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm" onclick="kmReport()">📄 出年度里數表</button>
+      ${noKm?`<button class="btn grey sm" onclick="kmFill()">✏️ 補填未有里數嘅堂</button>`:''}
+    </div>
+    <p class="muted" style="margin-bottom:0">CRA要求行車記錄簿有日期／目的地／公里數。年度表會逐堂列晒，直接印俾會計師。</p></div>`;
+}
+function kmFill(){
+  const y=String(new Date().getFullYear());
+  const ls=DB.lessons.filter(l=>isPast(l)&&(l.date||'').startsWith(y)&&!l.km).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
+  openModal(`<h3>✏️ 補填里數（${ls.length}堂）</h3>
+  <p class="muted">填完撳儲存，一次過入晒。留空嘅唔會改。</p>
+  ${ls.map(l=>`<div class="item row"><span style="font-size:12.5px;flex:1">${l.date} ${wd(l.date).slice(-1)} ${l.start}　${esc(stuName(l.studentId))}</span>
+    <input id="kf_${l.id}" type="number" inputmode="decimal" step="0.1" placeholder="km" style="width:78px"></div>`).join('')}
+  <div class="row" style="margin-top:14px"><button class="btn" onclick="kmFillSave()">儲存全部</button>
+  <button class="btn grey" onclick="closeModal()">取消</button></div>`);
+}
+function kmFillSave(){
+  let n=0;
+  DB.lessons.forEach(l=>{ const el=document.getElementById('kf_'+l.id); if(el&&el.value!==''){ l.km=Number(el.value); n++; } });
+  closeModal(); save(); alert('已填咗 '+n+' 堂里數');
+}
+function kmReport(){
+  const y=String(new Date().getFullYear());
+  const ls=DB.lessons.filter(l=>isPast(l)&&(l.date||'').startsWith(y)).sort((a,b)=>a.date.localeCompare(b.date));
+  const tot=ls.reduce((a,l)=>a+Number(l.km||0),0);
+  const b=cfg().biz||{};
+  document.getElementById('printarea').innerHTML=`
+  <div style="font-family:-apple-system,'PingFang HK',sans-serif;color:#000;padding:18px">
+    <h2 style="margin:0 0 2px">${esc(b.name||'')} — ${y}年 行車記錄簿</h2>
+    <div style="font-size:12px;color:#555">Business Mileage Log ${y}　·　${esc(b.phone||'')}　·　出表日期 ${todayStr()}</div>
+    <div style="margin:10px 0;padding:9px 12px;background:#eef3f0;border:1px solid #cfe0d6;font-size:14px">
+      全年業務里數合計 <b style="font-size:20px">${tot} km</b>　·　共 ${ls.length} 次行程</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+      <tr><th style="border:1px solid #999;padding:5px;background:#eee">日期</th><th style="border:1px solid #999;padding:5px;background:#eee">星期</th>
+      <th style="border:1px solid #999;padding:5px;background:#eee">目的（學生／類型）</th><th style="border:1px solid #999;padding:5px;background:#eee">地點</th>
+      <th style="border:1px solid #999;padding:5px;background:#eee;text-align:right">公里</th></tr>
+      ${ls.map(l=>`<tr><td style="border:1px solid #ccc;padding:4px">${l.date}</td>
+        <td style="border:1px solid #ccc;padding:4px">${wd(l.date).slice(-1)}</td>
+        <td style="border:1px solid #ccc;padding:4px">${esc(stuName(l.studentId))}　${esc(l.ltype||'')}</td>
+        <td style="border:1px solid #ccc;padding:4px">${esc(l.loc||'')}</td>
+        <td style="border:1px solid #ccc;padding:4px;text-align:right">${l.km||'<span style="color:#c00">未填</span>'}</td></tr>`).join('')}
+      <tr><td colspan="4" style="border:1px solid #999;padding:5px;text-align:right;font-weight:800">合計</td>
+      <td style="border:1px solid #999;padding:5px;text-align:right;font-weight:800">${tot} km</td></tr>
+    </table>
+    <p style="font-size:10.5px;color:#666;margin-top:10px">※ 本表由教車師父管理系統自動產生，供報稅參考。CRA亦要求記錄全年總里數（業務＋私人）以計算業務用車比例。</p>
+  </div>`;
+  setTimeout(()=>window.print(),100);
 }
 
 /* ================= 🧾 匯出賬單 ================= */
@@ -2133,7 +2548,7 @@ function formLesson(id, presetStu){
     <optgroup label="G2課程">${cfg().curriculum.map((c,i)=>({c,i})).filter(x=>x.c.track==='G2').map(x=>`<option value="${x.i}" ${x.i===currIdx?'selected':''}>${esc(x.c.t)}</option>`).join('')}</optgroup>
     <optgroup label="Full G課程">${cfg().curriculum.map((c,i)=>({c,i})).filter(x=>x.c.track==='G').map(x=>`<option value="${x.i}" ${x.i===currIdx?'selected':''}>${esc(x.c.t)}</option>`).join('')}</optgroup>
     <option value="FOCUS" ${l.title==='重點訓練'?'selected':''}>⭐ 重點訓練（第5堂之後）</option></select>
-  <label>日期 *</label><input id="f_date" type="date" value="${l.date||todayStr()}" onchange="updEnd()">
+  <label>日期 *</label><input id="f_date" type="date" value="${l.date||NEWDATE||todayStr()}" onchange="updEnd()">
   <label>開始時間 *</label><input id="f_start" type="time" value="${l.start||'10:00'}" onchange="updEnd()">
   <label>時長</label><select id="f_dur" onchange="durChanged()">
     ${[1,1.5,2].map(x=>`<option value="${x}" ${durPreset&&defDur==x?'selected':''}>${x}小時</option>`).join('')}
@@ -2143,6 +2558,8 @@ function formLesson(id, presetStu){
   <label>本堂收費 (CAD)</label><input id="f_fee" type="number" inputmode="decimal" value="${defFee}" oninput="paidDiff()">
   <div class="muted" id="feeBrk" style="margin-top:4px;font-size:13px"></div>
   <div class="muted" id="prepaidMsg" style="margin-top:2px;font-size:13px"></div>
+  <label>🚗 行車里數 (km)　<span class="muted" style="font-weight:400">報稅用，可以之後補</span></label>
+  <input id="f_km" type="number" inputmode="decimal" step="0.1" value="${l.km!=null?l.km:''}" placeholder="例：42">
   <label>💰 堂費狀態</label><select id="f_pay" onchange="payChanged()">
     ${['未付','已付-現金','已付-E-Transfer'].map(x=>`<option ${(l.payStatus||'未付')===x?'selected':''}>${x}</option>`).join('')}</select>
   <div id="paidRow" style="display:none">
@@ -2160,8 +2577,19 @@ function formLesson(id, presetStu){
   <label>本堂整體評分</label><select id="f_score"><option value="">未評</option>${[1,2,3,4,5].map(x=>`<option value="${x}" ${l.score==x?'selected':''}>${'★'.repeat(x)}</option>`).join('')}</select>
   <label>該堂問題（有咩做得唔好）</label><textarea id="f_problems" rows="2">${esc(l.problems||'')}</textarea>
   <label>⭐ 下堂加強練習</label><textarea id="f_next" rows="2">${esc(l.nextFocus||'')}</textarea>
+  ${id?'':`<div style="margin-top:10px;padding:10px;background:var(--input);border:1px solid var(--line);border-radius:10px">
+    <label style="display:inline-flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--ink);cursor:pointer">
+      <input type="checkbox" id="f_rep" style="width:auto" onchange="document.getElementById('repRow').style.display=this.checked?'block':'none'">
+      🔁 重複排堂（同一時間、同一學生，一次過排多幾堂）</label>
+    <div id="repRow" style="display:none">
+      <div class="grid2" style="margin-top:6px">
+        <div><label style="margin-top:0">每隔</label><select id="f_repev"><option value="7">每星期</option><option value="14">每兩星期</option><option value="1">每日</option></select></div>
+        <div><label style="margin-top:0">總共排幾多堂</label><input id="f_repn" type="number" inputmode="numeric" value="8"></div></div>
+      <div class="muted" id="repMsg" style="margin-top:4px;font-size:12px"></div>
+    </div></div>`}
   <div class="row" style="margin-top:14px"><button class="btn" onclick="saveLesson('${id||''}')">儲存</button>
   <button class="btn grey" onclick="closeModal()">取消</button></div>`);
+  NEWDATE=null;
   renderChecks(); payChanged(true); prepaidNote();
   if(ltype.includes('考試')){
     const rc=document.getElementById('f_rent');
@@ -2187,6 +2615,8 @@ function autoFee(ty,dur,sid){
   const s=stu(sid!==undefined?sid:val('f_sid'));
   const rate=rateOf(ty,s);
   if(ty==='BDE課程') return bdeFeeOf(s);           // 固定收費，唔按鐘數計
+  // 有套票剩餘 → 普通堂收費$0（錢喺開套票嗰陣已經入咗賬）
+  if((ty==='G2堂'||ty==='G堂') && s && activePkg(s.id)) return 0;
   if(ty==='G2堂'||ty==='G堂') return rate*dur;
   if(ty==='G2考試日'||ty==='G考試日'){
     const rc=document.getElementById('f_rent');
@@ -2238,6 +2668,12 @@ function calcFee(){
         +'<br><span style="font-size:12px">讀完等候期 12個月 ➜ 8個月。金額可以喺上面「本堂收費」直接改。</span>';
       return;
     }
+    const pk0=activePkg(val('f_sid'));
+    if(pk0&&(ty==='G2堂'||ty==='G堂')){
+      bk.innerHTML='🎟️ 用套票扣 1 堂（開套票時已收 '+money(pk0.amount||0)+'）・呢堂收費 <b style="color:var(--neon)">$0</b>'
+        +'<br><span style="font-size:12px">扣完仲有 '+(pkgLeft(pk0)-1)+' 堂。如果想單獨收錢，直接改上面金額就得。</span>';
+      return;
+    }
     let t='('+dur+')小時 × '+(isG?'G($'+rate+')':'G2($'+rate+')');
     if(ty.includes('考試')){
       const rc=document.getElementById('f_rent');
@@ -2266,9 +2702,12 @@ function paidDiff(){
 }
 function prepaidNote(){
   const el=document.getElementById('prepaidMsg'); if(!el) return;
-  const o=owedOf(val('f_sid'));
-  el.innerHTML = o<-0.004 ? '💡 呢個學生有 <b style="color:var(--green)">'+money(-o)+' 預繳</b>（收費照填全數，數自己會扣）'
+  const sid=val('f_sid'), o=owedOf(sid), pk=activePkg(sid);
+  let h='';
+  if(pk) h+='🎟️ 有套票：<b style="color:var(--neon)">仲有 '+pkgLeft(pk)+' 堂</b>（呢堂會自動扣，收費當$0）<br>';
+  h += o<-0.004 ? '💡 呢個學生有 <b style="color:var(--green)">'+money(-o)+' 預繳</b>（收費照填全數，數自己會扣）'
     : o>0.004 ? '⚠️ 呢個學生尚欠 <b style="color:var(--red)">'+money(o)+'</b>' : '';
+  el.innerHTML=h;
 }
 function stuChanged(){ examSync(); calcFee(); prepaidNote(); }
 function examSync(){
@@ -2370,6 +2809,7 @@ function saveLesson(id){
   const payS=val('f_pay');
   const paidV=payS.startsWith('已付') ? (val('f_paid')===''?Number(val('f_fee')||0):Number(val('f_paid')||0)) : null;
   const d={studentId:val('f_sid'), date, start, dur:durV, fee:Number(val('f_fee')||0), paid:paidV,
+    km: val('f_km')!=='' ? Number(val('f_km')) : null,
     rent: val('f_ltype').includes('考試') ? !!(document.getElementById('f_rent')&&document.getElementById('f_rent').checked) : null,
     exTime: val('f_ltype').includes('考試') ? val('f_extime2') : null,
     travel: val('f_ltype').includes('考試') ? (Number(val('f_travel'))||0) : null,
@@ -2393,8 +2833,33 @@ function saveLesson(id){
       date:d.date, method:d.payStatus.includes('現金')?'現金':'e-Transfer',
       note:'堂費（自動記錄）'+(amt!==d.fee?('・應收'+money(d.fee)):'')});
   }
+  // 🔁 重複排堂：照第一堂複製，日期順延
+  let repN=0;
+  const rc=document.getElementById('f_rep');
+  if(!id && rc && rc.checked){
+    const ev=Number(val('f_repev'))||7, n=Math.max(2,Math.min(52,Number(val('f_repn'))||2));
+    for(let i=1;i<n;i++){
+      const dt=new Date(new Date(date+'T00:00').getTime()+i*ev*864e5);
+      const nd=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+      const clash2=DB.lessons.find(x=>{
+        if(x.date!==nd) return false;
+        const s2=new Date(x.date+'T'+x.start).getTime(), e2=s2+(x.dur||1)*3600000;
+        const s3=new Date(nd+'T'+start).getTime(), e3=s3+durV*3600000;
+        return s3<e2 && s2<e3;
+      });
+      const cp=JSON.parse(JSON.stringify(d));
+      cp.id=uid(); cp.date=nd; cp.paid=null; cp.payStatus='未付'; cp.km=null;
+      cp.score=null; cp.problems=''; cp.nextFocus=''; cp.checks=null; cp.ratings=null;
+      if(clash2) cp.clashNote='⚠️ 同「'+stuName(clash2.studentId)+'」時間重疊';
+      DB.lessons.push(cp); repN++;
+    }
+  }
   closeModal(); save();
-  if(!id && new Date(date+'T'+start)>new Date()){
+  if(repN){
+    const clashes=DB.lessons.filter(l=>l.clashNote).length;
+    alert('✅ 一次過排咗 '+(repN+1)+' 堂'+(clashes?('\n\n⚠️ 其中 '+clashes+' 堂同其他堂時間重疊，記得去排堂頁檢查（有紅色標記）。'):''));
+  }
+  if(!id && !repN && new Date(date+'T'+start)>new Date()){
     gcal(lid2);
     if(confirm('已排堂，Google日曆加入畫面已經開咗（過去撳「儲存」就入咗日曆）。\n\n要唔要同時WhatsApp發送排堂確認俾學生？')) waConfirm(lid2);
   }
@@ -2497,7 +2962,7 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = initializeFirestore(app, { localCache: persistentLocalCache() }); // 離線都用到，返網自動補傳
 
-const COLLS = ['students','lessons','payments','exams','expenses','roadtests'];
+const COLLS = ['students','lessons','payments','exams','expenses','roadtests','packages'];
 let UID = null, UNSUB = [], REM = null, GOT = null, SYNCING = 0;
 
 const $ = id => document.getElementById(id);
@@ -2528,6 +2993,16 @@ function gate(html){ // 用登入overlay做通道畫面
     +'<button class="btn grey sm" style="margin-top:12px" onclick="window.cloudLogout&&window.cloudLogout(true)">登出</button>';
 }
 function invCode(){ return new URLSearchParams(location.search).get('inv'); }
+/* 學生自助連結：唔使登入，直接出唯讀頁 */
+(async ()=>{
+  const tk=new URLSearchParams(location.search).get('s');
+  if(!tk) return;
+  document.getElementById('loginwrap').innerHTML='<div class="logo">🚗</div><div id="loginmsg">載入緊你嘅紀錄…</div>';
+  const d=await window.loadShare(tk);
+  if(!d){ document.getElementById('loginwrap').innerHTML='<div class="logo">🚗</div><h2>連結已失效</h2><div id="loginmsg">請向你嘅教車師父攞返條新連結。</div>'; return; }
+  document.getElementById('loginwrap').classList.add('hide');
+  renderShare(d);
+})();
 
 onAuthStateChanged(auth, async user=>{
   if(!user){
@@ -2627,6 +3102,16 @@ async function loadSFieldsOnce(){
 window.saveStaffFields = async f=>{
   try{ await setDoc(doc(db,'company','staffFields'),{ j:JSON.stringify(f), updatedAt:serverTimestamp(), by:auth.currentUser.uid }); }
   catch(e){ alert('儲存欄位表失敗：'+(e.code||e.message)); }
+};
+/* ---------- 🔗 學生自助連結（唯讀快照） ---------- */
+window.publishShare = async (token, data)=>{
+  try{ await setDoc(doc(db,'shares',token), { j:JSON.stringify(data), at:serverTimestamp(), by:auth.currentUser.uid }); return true; }
+  catch(e){ alert('產生連結失敗：'+(e.code||e.message)); return false; }
+};
+window.removeShare = async token=>{ try{ await deleteDoc(doc(db,'shares',token)); }catch(e){} };
+window.loadShare = async token=>{
+  try{ const s=await getDoc(doc(db,'shares',token)); return s.exists()? JSON.parse(s.data().j) : null; }
+  catch(e){ return null; }
 };
 window.saveMyProfile = async patch=>{
   try{ await setDoc(doc(db,'users',auth.currentUser.uid,'meta','profile'), patch, {merge:true}); return true; }
