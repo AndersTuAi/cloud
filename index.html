@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.7">
+<meta name="app-ver" content="2.8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -513,6 +513,63 @@ function owedOf(sid){
   const paid=DB.payments.filter(p=>p.studentId===sid).reduce((a,p)=>a+Number(p.amount),0);
   return fees+pkgTotalCharged(sid)-paid;
 }
+/* ---------- 🪪 安省牌照里程碑（G1→G2→Full G） ----------
+   規則（2026-08核實）：G1合格後12個月可考G2；讀完BDE減至8個月。
+   G2合格後12個月可考Full G（BDE幫唔到呢段）。全程要喺G1合格起5年內完成。 */
+function addMonths(ds,m){
+  if(!ds) return null;
+  const d=new Date(ds+'T00:00'); const day=d.getDate();
+  d.setMonth(d.getMonth()+m);
+  if(d.getDate()<day) d.setDate(0);          // 例如 1月31 +1月 → 2月底
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+function daysTo(ds){ if(!ds) return null; return Math.ceil((new Date(ds+'T00:00')-new Date(new Date().toDateString()))/864e5); }
+function bdeDone(s){ return s && s.bde==='已完成' && s.bdeDate; }
+function lic(s){
+  if(!s) return {};
+  const r={ g1:s.g1Date||'', g2:s.g2Date||'', full:s.gDate||'', bde:bdeDone(s)?s.bdeDate:'' };
+  r.g2Ready   = r.g1 ? addMonths(r.g1, r.bde?8:12) : null;   // 幾時可考G2
+  r.fullReady = r.g2 ? addMonths(r.g2, 12) : null;           // 幾時可考Full G
+  r.deadline  = r.g1 ? addMonths(r.g1, 60) : null;           // 5年死線
+  r.stage = r.full ? 'done' : (r.g2 ? 'waitFull' : (r.g1 ? 'waitG2' : 'new'));
+  r.target    = r.stage==='waitFull' ? r.fullReady : (r.stage==='waitG2' ? r.g2Ready : null);
+  r.targetName= r.stage==='waitFull' ? 'Full G' : 'G2';
+  r.d         = r.target ? daysTo(r.target) : null;          // 仲有幾多日（負數＝已經夠鐘）
+  return r;
+}
+const LEAD_DAYS=60;   // 提前2個月提醒（Anders揀）
+function licBadge(s){
+  const L=lic(s);
+  if(s.archived) return {t:'📦 已封存', c:'var(--sub)', hot:false};
+  if(L.stage==='done') return {t:'🎓 已考到Full G', c:'var(--sub)', hot:false};
+  if(L.stage==='new'||!L.target) return null;
+  const d=L.d;
+  if(d<=0)         return {t:'✅ 可以考'+L.targetName+'喇', c:'var(--green)', hot:true};
+  if(d<=LEAD_DAYS) return {t:'🔔 仲有'+d+'日可考'+L.targetName, c:'var(--amber)', hot:true};
+  const mo=Math.round(d/30.4);
+  return {t:'⏳ 約'+mo+'個月後可考'+L.targetName, c:'var(--sub)', hot:false};
+}
+// 排序層：0=學緊/快夠鐘（上）、1=等緊未夠鐘（灰）、2=已完成Full G／封存（永遠底）
+function studentTier(s){
+  if(s.archived) return 3;
+  const L=lic(s);
+  if(L.stage==='done') return 2;
+  if((s.status||'學緊')==='暫停') return 2;
+  const b=licBadge(s);
+  if(L.stage==='waitFull' && !(b&&b.hot)) return 1;   // 考咗G2但未夠鐘 → 灰、沉中間
+  return 0;
+}
+function isDim(s){ return studentTier(s)>=1; }
+// 主頁提醒：夠鐘或快夠鐘
+function licDueList(){
+  return DB.students.filter(s=>!s.archived).map(s=>({s, L:lic(s), b:licBadge(s)}))
+    .filter(x=>x.b&&x.b.hot).sort((a,b)=>(a.L.d||0)-(b.L.d||0));
+}
+function licDeadlineList(){   // 5年死線 6個月內
+  return DB.students.filter(s=>!s.archived&&s.g1Date&&!s.gDate).map(s=>({s,dl:lic(s).deadline}))
+    .map(x=>({...x, d:daysTo(x.dl)})).filter(x=>x.d!=null&&x.d<=183).sort((a,b)=>a.d-b.d);
+}
+
 /* ---------- 🎟️ 課程套票 ---------- */
 function pkgsOf(sid){ return (DB.packages||[]).filter(p=>p.studentId===sid).sort((a,b)=>a.date.localeCompare(b.date)); }
 function pkgUsed(p){ // 由套票開始日起計、喺下一張套票之前、已上完嘅堂
@@ -588,6 +645,24 @@ function monthHdr(m){
     +m.slice(0,4)+'年'+Number(m.slice(5,7))+'月</div>';
 }
 /* ================= 😴 休眠學生 ＋ 🏁 考場合格率 ================= */
+function licDueCard(){
+  const due=licDueList(), dls=licDeadlineList();
+  if(!due.length&&!dls.length) return '';
+  return `<div class="card" style="margin-top:12px;border-color:var(--green)"><h3>⏰ 可以考試喇 / 快夠鐘（提前2個月）</h3>
+  ${due.map(x=>{
+    const ready=x.L.d<=0;
+    return `<div class="item row">
+      <b onclick="VIEW_STUDENT='${x.s.id}';TAB='students';render()" style="cursor:pointer">${esc(x.s.name)}</b>
+      <span class="tag ${ready?'g':'a'}">${ready?'✅ 夠鐘考'+x.L.targetName:'🔔 仲有'+x.L.d+'日'}</span>
+      <span class="muted">可考日 ${esc(x.L.target)}</span>
+      <span class="right"></span>
+      ${x.s.phone?`<button class="btn green sm" onclick="wa('${esc(x.s.phone)}')">💬 問佢</button>`:''}
+      <button class="btn sm" onclick="formLesson(null,'${x.s.id}')">＋ 排堂</button></div>`;
+  }).join('')}
+  ${dls.map(x=>`<div class="item row"><b>${esc(x.s.name)}</b><span class="tag r">⚠️ 5年死線仲有${x.d}日</span>
+    <span class="muted">${esc(x.dl)}　過咗要重考G1</span></div>`).join('')}
+  </div>`;
+}
 function sleepCard(){
   const list=sleepingStudents();
   if(!list.length) return '';
@@ -612,6 +687,28 @@ function centreCard(){
     <tr style="font-weight:800;background:var(--grey)"><td>全部</td><td style="text-align:right">${tot.n}</td><td style="text-align:right">${tot.p}</td>
       <td style="text-align:right">${tot.n?Math.round(tot.p/tot.n*100):0}%</td></tr></table>
     <p class="muted" style="margin-bottom:0">樣本越多越準。合格率高嘅考場可以優先建議俾學生，亦可以做宣傳賣點。</p></div>`;
+}
+
+/* ================= 🪪 牌照進度卡 ================= */
+function licCard(sid){
+  const s=stu(sid); if(!s) return '';
+  const L=lic(s), b=licBadge(s);
+  if(!L.g1&&!L.g2&&!L.full&&!s.archived)
+    return `<div class="card"><h3>🪪 牌照進度</h3>
+      <p class="muted" style="margin-bottom:0">未填合格日期。喺「編輯」入面填 G1筆試合格日，App就會自動計幾時可以考G2（讀完BDE仲快4個月）。</p></div>`;
+  const row=(ic,t,d,extra)=>`<div class="item row"><span style="font-size:15px">${ic}</span><b style="min-width:96px">${t}</b>
+    <span>${d?esc(dwd(d)):'<span class="muted">未考</span>'}</span><span class="right muted" style="font-size:12px">${extra||''}</span></div>`;
+  const dl=L.deadline?daysTo(L.deadline):null;
+  return `<div class="card"${b&&b.hot?' style="border-color:'+b.c+'"':''}><h3>🪪 牌照進度</h3>
+    ${row('📝','G1 筆試',L.g1, L.bde?'BDE已完成 → 等8個月':(L.g1?'等12個月':''))}
+    ${row('🚗','G2 路試',L.g2, L.g2?'':(L.g2Ready?('可考日 '+L.g2Ready):''))}
+    ${row('🏆','Full G',L.full, L.full?'':(L.fullReady?('可考日 '+L.fullReady):''))}
+    ${b?`<div style="margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,${b.c} 14%,transparent);color:${b.c};font-weight:${b.hot?'800':'600'};font-size:14px">${b.t}
+      ${L.target&&L.stage!=='done'?`<span style="font-weight:400;font-size:12px"> · 可考日 ${esc(dwd(L.target))}</span>`:''}</div>`:''}
+    ${L.bde?`<div class="muted" style="margin-top:6px">🎓 BDE ${esc(dwd(L.bde))} 完成 → G2等候期由12個月減至8個月</div>`:
+      (L.g1&&!L.g2?`<div class="muted" style="margin-top:6px">💡 未讀BDE。讀完可以早4個月考G2（${esc(addMonths(L.g1,8))}），值得同佢講。</div>`:'')}
+    ${dl!=null&&dl<=183&&!L.full?`<div style="margin-top:6px;color:var(--red);font-size:12.5px;font-weight:700">⚠️ 5年死線 ${esc(L.deadline)}（仲有${dl}日）——過咗要重新考G1</div>`:''}
+    ${s.archived?'<div class="muted" style="margin-top:6px">📦 已封存，喺列表永遠沉底。喺「編輯」可以取消。</div>':''}</div>`;
 }
 
 /* ================= 🎟️ 課程套票 ================= */
@@ -848,7 +945,7 @@ function vDash(){
   if(DASHSUB==='feed'){
     return sub
       + (todayCard||'<div class="card"><h3>🗓️ 今日／聽日堂表</h3><div class="muted">今日同聽日未有排堂</div></div>')
-      + fillCard + sleepCard() + upCard + exCard;
+      + fillCard + licDueCard() + sleepCard() + upCard + exCard;
   }
   return sub + centreCard() + `
   <div class="grid2">
@@ -868,7 +965,17 @@ function vDash(){
 function vStudents(){
   const list=DB.students
     .filter(s=>!SEARCH || s.name.toLowerCase().includes(SEARCH.toLowerCase()) || (s.phone||'').includes(SEARCH))
-    .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
+    .sort((a,b)=>{
+      const ta=studentTier(a), tb=studentTier(b);
+      if(ta!==tb) return ta-tb;                                   // 學緊喺上、灰嘅沉底
+      const ba=licBadge(a), bb=licBadge(b);
+      if(ta===0){                                                  // 同一層：夠鐘嘅排最前
+        const ha=(ba&&ba.hot)?0:1, hb=(bb&&bb.hot)?0:1;
+        if(ha!==hb) return ha-hb;
+        if(ha===0) return (lic(a).d||0)-(lic(b).d||0);
+      }
+      return a.name.localeCompare(b.name,'zh-Hant');
+    });
   return `
   <div class="row" style="margin-bottom:12px">
     <input class="searchbox" style="flex:1;margin:0" placeholder="🔍 搵學生（名/電話）" value="${esc(SEARCH)}" oninput="SEARCH=this.value;render();document.querySelector('.searchbox').focus()">
@@ -876,12 +983,14 @@ function vStudents(){
   </div>
   ${list.length?list.map(s=>{
     const o=owedOf(s.id); const n=DB.lessons.filter(l=>l.studentId===s.id&&isPast(l)).length;
-    return `<div class="card" onclick="VIEW_STUDENT='${s.id}';render()" style="cursor:pointer">
-      <div class="row"><b style="font-size:16px">${esc(s.name)}</b>
+    const dim=isDim(s), bg=licBadge(s);
+    return `<div class="card" onclick="VIEW_STUDENT='${s.id}';render()" style="cursor:pointer${dim?';opacity:.55':''}${bg&&bg.hot?';border-color:'+bg.c:''}">
+      <div class="row"><b style="font-size:16px${dim?';color:var(--sub)':''}">${esc(s.name)}</b>
         <span class="tag ${s.status==='已考牌'?'g':s.status==='暫停'?'r':''}">${esc(s.status||'學緊')}</span>
         <span class="tag a">${esc(s.stage||'G1')}➜${esc(s.target||'G2')}</span>
         ${s.phone?`<button class="btn green sm" onclick="event.stopPropagation();wa('${esc(s.phone)}')">💬</button>`:''}
         <span class="right muted">已上 ${n} 堂</span></div>
+      ${bg?`<div style="margin-top:4px;font-size:12.5px;font-weight:${bg.hot?'800':'400'};color:${bg.c}">${bg.t}</div>`:''}
       <div class="muted" style="margin-top:4px">📞 ${esc(s.phone||'—')} ${o>0?' · <span style="color:var(--red);font-weight:700">欠 '+money(o)+'</span>':''}</div>
     </div>`;}).join('')
   :'<div class="card muted">未有學生，撳「＋ 新學生」開始。</div>'}`;
@@ -931,6 +1040,7 @@ function vStudentDetail(id){
     <button class="btn grey" onclick="report('${id}')">📋 進度報告</button>
     <button class="btn red" onclick="rtStart('${id}')">🏁 模擬路試</button>
   </div>
+  ${licCard(id)}
   ${pkgCard(id)}
   ${(()=>{
     const rts=DB.roadtests.filter(r=>r.studentId===id).sort((a,b)=>b.date.localeCompare(a.date));
@@ -1895,7 +2005,7 @@ function vSettings(){
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
     <div class="row" style="margin-top:10px"><button class="btn sm" onclick="checkUpdate(true)">🔄 檢查更新</button></div>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（月曆／重複排堂／里數／自助連結／套票／休眠提醒／考場合格率）· 2026-08-11
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（月曆／重複排堂／里數／自助連結／套票／休眠提醒／考場合格率／牌照里程碑）· 2026-08-12
     <br><label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">😴 幾多日冇上堂算休眠<input id="s_sleep" type="number" style="width:70px" value="${cfg().sleepDays}"><button class="btn sm" onclick="cfg().sleepDays=Number(val('s_sleep'))||30;save()">存</button></label></p></div>`;
 }
 
@@ -2207,7 +2317,11 @@ function billForm(sid){
   <label>選項</label>
   <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_showpaid" style="width:auto" checked onchange="billPreview()"><span style="font-size:13px">顯示已收咗嘅堂（打✓）</span><span class="muted">唔剔＝只列未收</span></label>
   <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_showpay" style="width:auto" checked onchange="billPreview()"><span style="font-size:13px">顯示付款方式</span></label>
+  ${billLessons(sid).some(l=>l.ltype==='BDE課程')?`<label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_bdesplit" style="width:auto" onchange="billPreview()"><span style="font-size:13px">🎓 BDE課程獨立出一張單</span><span class="muted">剔咗＝BDE同學費分開兩張</span></label>`:''}
   <div id="billSum" class="muted" style="margin-top:10px;font-size:13px"></div>
+  <div id="billModeRow" style="display:none;margin-top:8px">
+    <div class="row"><button class="btn ${BILL_MODE==='fee'?'':'grey'} sm" style="flex:1" onclick="BILL_MODE='fee';billForm('${sid}')">💵 學費單</button>
+    <button class="btn ${BILL_MODE==='bde'?'':'grey'} sm" style="flex:1" onclick="BILL_MODE='bde';billForm('${sid}')">🎓 BDE單</button></div></div>
   <div class="row" style="margin-top:12px">
     <button class="btn" style="flex:1" onclick="billPrint()">📄 匯出PDF</button>
     <button class="btn green" style="flex:1" onclick="billImage()">🖼️ 存做圖片</button></div>
@@ -2216,7 +2330,7 @@ function billForm(sid){
     <button class="btn grey" onclick="closeModal()">關閉</button></div>`);
   billPreview();
 }
-let BILL_SID=null;
+let BILL_SID=null, BILL_MODE='fee';   // fee=學費單, bde=BDE獨立單
 function billSet(mode){
   document.querySelectorAll('.bck').forEach(c=>{
     if(mode===1) c.checked=true;
@@ -2233,15 +2347,24 @@ function billData(){
   const got=all.reduce((a,l)=>a+paidOfLesson(l),0);
   const showPaid=(document.getElementById('b_showpaid')||{checked:true}).checked;
   const showPay=(document.getElementById('b_showpay')||{checked:true}).checked;
-  const rows=showPaid?all:all.filter(l=>paidOfLesson(l)<Number(l.fee||0));
-  return {sid, picked, all, rows, tot, got, owe:tot-got, showPay};
+  let rows=showPaid?all:all.filter(l=>paidOfLesson(l)<Number(l.fee||0));
+  const split=(document.getElementById('b_bdesplit')||{checked:false}).checked;
+  if(split && BILL_MODE!=='bde') rows=rows.filter(l=>l.ltype!=='BDE課程');   // 學費單：剔走BDE
+  if(split && BILL_MODE==='bde') rows=rows.filter(l=>l.ltype==='BDE課程');   // BDE單：淨係BDE
+  const t2=split?rows.reduce((a,l)=>a+Number(l.fee||0),0):tot;
+  const g2=split?rows.reduce((a,l)=>a+paidOfLesson(l),0):got;
+  return {sid, picked, all, rows, tot:t2, got:g2, owe:t2-g2, showPay, split};
 }
 function billPreview(){
   const el=document.getElementById('billSum'); if(!el) return;
+  const sp=(document.getElementById('b_bdesplit')||{checked:false}).checked;
+  const mr=document.getElementById('billModeRow'); if(mr) mr.style.display=sp?'block':'none';
+  if(!sp) BILL_MODE='fee';
   const d=billData();
-  el.innerHTML = d.picked.length
+  el.innerHTML = (sp?('<b style="color:var(--neon)">而家出緊：'+(BILL_MODE==='bde'?'🎓 BDE獨立單':'💵 學費單（唔含BDE）')+'</b><br>'):'')
+    + (d.picked.length
     ? `合計 <b>${money(d.tot)}</b>　已收 <b style="color:var(--green)">${money(d.got)}</b>　尚欠 <b style="color:${d.owe>0.004?'var(--red)':'var(--green)'}">${money(d.owe)}</b>　（${d.all.length}項）`
-    : '⚠️ 未揀月份';
+    : '⚠️ 未揀月份');
 }
 function lineName(l){
   if(l.ltype==='BDE課程') return '🎓 BDE防禦性駕駛課程';
@@ -2270,8 +2393,8 @@ function billHTML(){
   }).join('');
   return `<div style="max-width:420px;margin:0 auto;background:#fff;color:#222;padding:22px 20px 26px;font-family:-apple-system,'PingFang HK','PingFang TC',sans-serif">
     <div style="text-align:center">
-      <div style="font-size:30px">🚗</div>
-      <div style="font-size:16px;font-weight:800;margin-top:2px">學費單</div>
+      <div style="font-size:30px">${d.split&&BILL_MODE==='bde'?'🎓':'🚗'}</div>
+      <div style="font-size:16px;font-weight:800;margin-top:2px">${d.split&&BILL_MODE==='bde'?'BDE 課程費用單':'學費單'}</div>
       <div style="font-size:11.5px;color:#888;margin-top:3px;line-height:1.6">${esc(b.name||'')}${b.phone?'　📞 '+esc(b.phone):''}<br>${todayStr()} 發出${period?'　·　'+period:''}</div></div>
     <div style="background:#f6f6f6;border-radius:10px;padding:12px 14px;margin:15px 0">
       <div style="font-size:15px;font-weight:800">${esc(s.name||'')}　<span style="font-size:11px;color:#1a5c3a">${esc(s.stage||'')} ➜ ${esc(s.target||'')}</span></div>
@@ -2424,6 +2547,16 @@ function formStudent(id){
   <label>目標考試中心</label><select id="f_centre"><option value="">未定</option>${cfg().centres.map(x=>`<option ${s.centre===x?'selected':''}>${esc(x)}</option>`).join('')}</select>
   <label>📅 考試日期（學生真實book咗先填，未book留空）</label><input id="f_exdate" type="date" value="${s.examDate||''}">
   <label>🕐 考試時間（可留空，留空Google日曆會出全日事件）</label><input id="f_extime" type="time" value="${s.examTime||''}">
+  <label style="color:var(--neon)">🪪 牌照里程碑（填咗自動計幾時可以考下一個試）</label>
+  <div class="grid2">
+    <div><label style="margin-top:0">G1 筆試合格日</label><input id="f_g1d" type="date" value="${s.g1Date||''}"></div>
+    <div><label style="margin-top:0">G2 路試合格日</label><input id="f_g2d" type="date" value="${s.g2Date||''}"></div>
+    <div><label style="margin-top:0">Full G 合格日</label><input id="f_gd" type="date" value="${s.gDate||''}"></div>
+    <div><label style="margin-top:0">　</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:12.5px;color:var(--ink);cursor:pointer">
+        <input type="checkbox" id="f_arch" style="width:auto" ${s.archived?'checked':''}>📦 封存（永遠沉底）</label></div>
+  </div>
+  <div class="muted" style="margin-top:4px;font-size:12px">考試記錄標「合格」時會自動填入G2／Full G日期。填咗合格日，學生會自動轉灰沉底。</div>
   <label>🎓 BDE 防禦性駕駛課程（讀完等候期12個月➜8個月）</label>
   <select id="f_bde" onchange="bdeChanged()">
     ${['未報','已報讀','已完成'].map(x=>`<option ${(s.bde||'未報')===x?'selected':''}>${x}</option>`).join('')}</select>
@@ -2495,6 +2628,8 @@ function saveStudent(id){
     rentFee:val('f_rentfee')?Number(val('f_rentfee')):null,
     stage:val('f_stage'), target:val('f_target'), centre:val('f_centre'), status:val('f_status'), notes:val('f_notes'),
     examDate:val('f_exdate')||'', examTime:val('f_extime')||'', needRent:val('f_needrent'),
+    g1Date:val('f_g1d')||'', g2Date:val('f_g2d')||'', gDate:val('f_gd')||'',
+    archived:!!(document.getElementById('f_arch')&&document.getElementById('f_arch').checked),
     bde:val('f_bde'), bdeDate:(val('f_bde')!=='未報'?val('f_bdedate'):''),
     bdeFee:(val('f_bde')==='已報讀'&&val('f_bdefee')!=='' ? Number(val('f_bdefee')) : null),
     photos:TMP_PHOTOS};
@@ -2901,7 +3036,14 @@ function saveExam(id){
   const d={studentId:val('f_sid'), type:val('f_type'), date:val('f_date'), centre:val('f_centre'), result:val('f_result')};
   if(id){ Object.assign(DB.exams.find(x=>x.id===id), d); }
   else { d.id=uid(); DB.exams.push(d); }
-  if(d.result==='合格'&&d.type==='G'){ const s=stu(d.studentId); if(s) s.status='已考牌'; }
+  // 標咗合格 → 自動填入學生嘅里程碑日期（唔會覆蓋你手動填過嘅）
+  if(d.result==='合格'){
+    const s=stu(d.studentId);
+    if(s){
+      if(d.type==='G'){ s.status='已考牌'; if(!s.gDate) s.gDate=d.date; }
+      if(d.type==='G2'&&!s.g2Date){ s.g2Date=d.date; if(s.target==='G2') s.target='Full G'; s.stage='G2'; }
+    }
+  }
   closeModal(); save();
 }
 
