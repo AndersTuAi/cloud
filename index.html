@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.9">
+<meta name="app-ver" content="3.0">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -377,6 +377,7 @@ function migrate(d){
   d.expenses = d.expenses || [];
   d.roadtests = d.roadtests || [];
   d.packages = d.packages || [];
+  d.bdes = d.bdes || [];
   // v1.2遷移：考場地址庫補漏 + 學生單一時薪拆做G2/G兩個
   d.config.centreAddr = d.config.centreAddr || {};
   for(const k in def.centreAddr){ if(d.config.centreAddr[k]===undefined) d.config.centreAddr[k]=def.centreAddr[k]; }
@@ -388,6 +389,20 @@ function migrate(d){
     // v2.9遷移：BDE報讀日同完成日分開存
     if(s.bde==='已報讀' && s.bdeDate && !s.bdeRegDate){ s.bdeRegDate=s.bdeDate; s.bdeDate=''; }
   });
+  // v3.0遷移：BDE由「堂」變獨立記錄（唔再計入堂數／時數／月曆／里數）
+  const oldBde=(d.lessons||[]).filter(l=>l.ltype==='BDE課程');
+  if(oldBde.length){
+    oldBde.forEach(l=>{
+      if(!d.bdes.some(x=>x.id===l.id)){
+        d.bdes.push({id:l.id, studentId:l.studentId, date:l.date, fee:Number(l.fee||0),
+          payStatus:l.payStatus||'未收', paid:(l.paid!=null?Number(l.paid):null), note:l.problems||''});
+      }
+      (d.payments||[]).forEach(p=>{ if(p.lessonId===l.id){ p.bdeId=l.id; delete p.lessonId; } });
+    });
+    d.lessons=(d.lessons||[]).filter(l=>l.ltype!=='BDE課程');
+    d.bdes.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    d.__mig=true;
+  }
   const cks=d.config.checks||{};
   for(const k in cks){
     if(Array.isArray(cks[k]) && cks[k].length && typeof cks[k][0]==='string'){
@@ -398,7 +413,7 @@ function migrate(d){
   d.config.cv=5;
   return d;
 }
-function blank(){ return {students:[], lessons:[], payments:[], exams:[], expenses:[], roadtests:[], packages:[], config:DEF()}; }
+function blank(){ return {students:[], lessons:[], payments:[], exams:[], expenses:[], roadtests:[], packages:[], bdes:[], config:DEF()}; }
 function cfg(){ return DB.config; }
 function save(){
   if(window.cloudSave) window.cloudSave();
@@ -517,12 +532,16 @@ function incomeByMonth(){
   DB.payments.forEach(p=>{ const k=monthKey(p.date); map[k]=(map[k]||0)+Number(p.amount); });
   return map;
 }
+/* 🎓 BDE獨立記錄：{id,studentId,date,fee,payStatus,paid,note} — 唔係堂，唔計堂數/時數/月曆 */
+function bdesOf(sid){ return (DB.bdes||[]).filter(b=>b.studentId===sid).sort((a,b)=>(a.date||'').localeCompare(b.date||'')); }
+function paidOfBde(b){ return (b.payStatus&&b.payStatus.startsWith('已付')) ? (b.paid!=null?Number(b.paid):Number(b.fee||0)) : 0; }
+function bdeCharged(sid){ return bdesOf(sid).reduce((a,b)=>a+Number(b.fee||0),0); }
 function owedOf(sid){
   const fees=DB.lessons.filter(l=>l.studentId===sid && isPast(l)).reduce((a,l)=>a+Number(l.fee||0),0);
-  // BDE收費而家用「排堂/記錄→BDE課程」入賬，已計入上面fees，唔會重複計
+  // BDE：一報讀即刻入賬（唔使等日期過）
   // 套票：買嗰陣一次過入賬，之後扣套票嘅堂fee=0，唔會double count
   const paid=DB.payments.filter(p=>p.studentId===sid).reduce((a,p)=>a+Number(p.amount),0);
-  return fees+pkgTotalCharged(sid)-paid;
+  return fees+pkgTotalCharged(sid)+bdeCharged(sid)-paid;
 }
 /* ---------- 🪪 安省牌照里程碑（G1→G2→Full G） ----------
    規則（2026-08核實）：G1合格後12個月可考G2；讀完BDE減至8個月。
@@ -610,7 +629,7 @@ function pkgsOf(sid){ return (DB.packages||[]).filter(p=>p.studentId===sid).sort
 function pkgUsed(p){ // 由套票開始日起計、喺下一張套票之前、已上完嘅堂
   const nx=pkgsOf(p.studentId).find(x=>x.date>p.date);
   return DB.lessons.filter(l=>l.studentId===p.studentId && isPast(l) && l.date>=p.date
-    && (!nx||l.date<nx.date) && l.ltype!=='BDE課程' && !(l.ltype||'').includes('考試')).length;
+    && (!nx||l.date<nx.date) && !(l.ltype||'').includes('考試')).length;
 }
 function pkgLeft(p){ return Math.max(0, Number(p.total||0)-pkgUsed(p)); }
 function activePkg(sid){ const a=pkgsOf(sid).filter(p=>pkgLeft(p)>0); return a.length?a[a.length-1]:null; }
@@ -658,7 +677,6 @@ function balText(sid){ // 學費結餘：正=尚欠、負=尚存（預繳）
 /* --- 排堂list顏色系統：左邊色條＋考試日識別＋月份分組 --- */
 function ltypeColor(l){
   const t=l.ltype||'';
-  if(t==='BDE課程') return 'var(--amber)';
   if(t.includes('考試')) return 'var(--red)';
   if(t==='G堂') return 'var(--green)';
   if(t==='G2堂') return 'var(--blue)';
@@ -732,7 +750,7 @@ function bdeGain(s){          // 讀BDE賺幾多：{old,new,months} 或 null
 function bdeCard(sid){
   const s=stu(sid); if(!s) return '';
   const st=bdeStage(s);
-  if(st===0) return '';
+  if(st===0 && !bdesOf(sid).length) return '';
   const reg=s.bdeRegDate, done=s.bdeDate, mto=mtoReady(s), w=weeksSince(reg);
   const chaseW=Number(cfg().bdeChaseWeeks||4);
   const line=(cls,ic,t,d)=>`<div class="st ${cls}"><b>${ic} ${t}</b>${d?`<div class="d">${d}</div>`:''}</div>`;
@@ -746,14 +764,31 @@ function bdeCard(sid){
        s.mtoChecked ? ('✅ 已查證 '+dwd(s.mtoChecked))
        : (mto? ('預計 '+dwd(mto)+(daysTo(mto)>0?('　仲有'+daysTo(mto)+'日'):'　夠鐘喇，去查下')) : '等完成日期'))}
   </div>
+  ${bdeRecRows(sid)}
   ${st===3&&mto&&daysTo(mto)<=0?`<div style="margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber);font-weight:700;font-size:13.5px">
     🏛️ 夠鐘上 DriveTest 查下 ${esc(s.name)} 可唔可以提早報考G2
     <button class="btn green sm" style="margin-left:8px" onclick="mtoConfirm('${sid}')">✅ 已查證</button></div>`:''}
   <div class="row" style="margin-top:10px">
+    <button class="btn sm" style="background:#8a6d1f;color:#fff" onclick="formBde(null,'${sid}')">＋ 加報讀記錄</button>
     <button class="btn grey sm" onclick="bdeNotice('${sid}')">🎓 通知單／重發</button>
     ${st===1&&s.phone?`<button class="btn green sm" onclick="bdeChaseWA('${sid}')">💬 催佢完成</button>`:''}
     ${s.mtoChecked?`<button class="btn grey sm" onclick="if(confirm('取消「已查證」記號？'))mtoUncheck('${sid}')">↩︎ 取消已查證</button>`:''}
   </div></div>`;
+}
+function bdeRecRows(sid){
+  const bs=bdesOf(sid);
+  if(!bs.length) return '<div class="muted" style="margin-top:8px;padding:8px;border-radius:8px;background:var(--input)">'
+    +'⚠️ 未有BDE收費記錄。撳下面「＋ 加報讀記錄」開一張 '+money(bdeFeeOf(stu(sid)))+'，即刻計入學費結餘同賬單。</div>';
+  return '<div style="margin-top:8px">'+bs.map(b=>{
+    const p=paidOfBde(b), fee=Number(b.fee||0);
+    const tag = (fee>0&&p>=fee) ? '<span class="tag g">✓ 已收 '+money(p)+'</span>'
+      : (p>0 ? '<span class="tag a">實收 '+money(p)+'　欠 '+money(fee-p)+'</span>'
+             : '<span class="tag r">未收 '+money(fee)+'</span>');
+    return '<div class="item row"><b>🎓 報讀 '+esc(dwd(b.date))+'</b>'+tag
+      +(b.note?'<span class="muted">'+esc(b.note)+'</span>':'')
+      +'<span class="right"></span>'
+      +'<button class="btn grey sm" onclick="formBde(\''+b.id+'\')">✏️</button></div>';
+  }).join('')+'</div>';
 }
 function mtoConfirm(sid){ const s=stu(sid); if(!s) return; s.mtoChecked=todayStr(); save(); }
 function mtoUncheck(sid){ const s=stu(sid); if(!s) return; s.mtoChecked=null; save(); }
@@ -1015,7 +1050,7 @@ function vCalendar(){
         return '<div class="cli" onclick="formLesson(\''+e.id+'\')">'
         +'<span class="cbar" style="background:'+ltypeColor(e)+'"></span>'
         +'<span class="ctm">'+esc(e.start||'')+'</span>'
-        +'<span class="cinfo"><span class="cnm">'+((e.ltype||'').includes('考試')?'🏁':(e.ltype==='BDE課程'?'🎓':''))+esc(stuName(e.studentId))+'</span>'
+        +'<span class="cinfo"><span class="cnm">'+((e.ltype||'').includes('考試')?'🏁':'')+esc(stuName(e.studentId))+'</span>'
         +'<span class="csub">'+esc(e.ltype||'')+' · '+(e.dur||0)+'小時'+(e.km?' · '+e.km+'km':'')+' · '
         +(p>=fee&&fee>0?'<span style="color:var(--green)">✓已收</span>':(p>0?'<span style="color:var(--amber)">實收'+money(p)+'</span>':(fee>0?'<span style="color:var(--red)">未收</span>':'🎟️套票')))
         +'</span></span><span class="camt">'+money(fee)+'</span><span class="cgo">›</span></div>';
@@ -1232,6 +1267,9 @@ function vStudentDetail(id){
     <button class="btn green" onclick="formPayment('${id}')">＋ 收學費</button>
     <button class="btn amber" onclick="formExam(null,'${id}')">＋ 考試</button>
     ${s.phone?`<button class="btn green" onclick="wa('${esc(s.phone)}')">💬 WhatsApp</button>`:''}
+    ${(()=>{ const bs=bdesOf(id); const b0=bs[bs.length-1];
+      return `<button class="btn" style="background:#8a6d1f;color:#fff" onclick="formBde(${b0?"'"+b0.id+"'":"null,'"+id+"'"})">🎓 ${b0?('BDE '+money(bdeCharged(id))+(bs.reduce((a,x)=>a+paidOfBde(x),0)>=bdeCharged(id)?' ✓':' 未收')):'報讀 BDE'}</button>`;
+    })()}
     <button class="btn grey" onclick="billForm('${id}')">🧾 匯出賬單</button>
     <button class="btn grey" onclick="shareForm('${id}')">🔗 自助連結${s.shareToken?'✓':''}</button>
     <button class="btn grey" onclick="report('${id}')">📋 進度報告</button>
@@ -1965,7 +2003,8 @@ async function staffDetail(uid){
       const m=new Date().toISOString().slice(0,7);
       const mFee=d.payments.filter(x=>(x.date||'').startsWith(m)).reduce((a,b)=>a+(Number(b.amount)||0),0);
       const mLes=d.lessons.filter(x=>(x.date||'').startsWith(m));
-      const totFee=d.lessons.filter(l=>new Date(l.date+'T'+(l.start||'00:00'))<new Date()).reduce((a,b)=>a+(Number(b.fee)||0),0);
+      const totFee=d.lessons.filter(l=>new Date(l.date+'T'+(l.start||'00:00'))<new Date()).reduce((a,b)=>a+(Number(b.fee)||0),0)
+        +(d.bdes||[]).reduce((a,b)=>a+(Number(b.fee)||0),0);
       const totPaid=d.payments.reduce((a,b)=>a+(Number(b.amount)||0),0);
       const exp=d.expenses.sort((x,y)=>(x.date<y.date?1:-1)).slice(0,8);
       opHtml='<div class="grid2" style="margin-top:8px">'
@@ -2208,7 +2247,7 @@ function vSettings(){
       </div>`;
     }).join('')}</div>
   <div class="card"><h3>📊 目前資料量</h3>
-    <p class="muted">學生 ${DB.students.length} 人 · 堂數 ${DB.lessons.length} · 收款 ${DB.payments.length} · 考試 ${DB.exams.length}<br>
+    <p class="muted">學生 ${DB.students.length} 人 · 堂數 ${DB.lessons.length} · 收款 ${DB.payments.length} · 考試 ${DB.exams.length} · BDE ${(DB.bdes||[]).length}<br>
     資料量：約 ${usage} MB（雲端免費層上限1GB，好夠用；相片佔最多空間）</p></div>
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
@@ -2347,6 +2386,7 @@ function shareData(sid){
     pkg: pk? {name:pk.name,total:pk.total,left:pkgLeft(pk)} : null,
     bill: past.map(l=>({d:l.date,t:l.start,ty:l.ltype||'',hr:l.dur||0,fee:Number(l.fee||0),paid:paidOfLesson(l)})),
     pkgCharges: pkgsOf(sid).map(p=>({d:p.date,name:p.name,amt:Number(p.amount||0)})),
+    bdeCharges: bdesOf(sid).map(b=>({d:b.date,amt:Number(b.fee||0),paid:paidOfBde(b)})),
     owe: Math.round(owedOf(sid)*100)/100,
     next: fut.slice(0,3).map(l=>({d:l.date,t:l.start,ty:l.ltype||''}))
   };
@@ -2394,8 +2434,9 @@ function shareWA(sid){
 /* --- 學生端畫面（?s=token） --- */
 function renderShare(d){
   const st=d.stu, b=d.biz;
-  const tot=d.bill.reduce((a,l)=>a+l.fee,0)+ (d.pkgCharges||[]).reduce((a,p)=>a+p.amt,0);
-  const got=d.bill.reduce((a,l)=>a+l.paid,0);
+  const tot=d.bill.reduce((a,l)=>a+l.fee,0)+ (d.pkgCharges||[]).reduce((a,p)=>a+p.amt,0)
+    + (d.bdeCharges||[]).reduce((a,p)=>a+p.amt,0);
+  const got=d.bill.reduce((a,l)=>a+l.paid,0)+ (d.bdeCharges||[]).reduce((a,p)=>a+(p.paid||0),0);
   const mk={}; d.bill.forEach(l=>{ const k=l.d.slice(0,7); (mk[k]=mk[k]||[]).push(l); });
   const exD=st.examDate? Math.ceil((new Date(st.examDate+'T00:00')-new Date(new Date().toDateString()))/864e5):null;
   document.body.innerHTML=`
@@ -2424,6 +2465,7 @@ function renderShare(d){
         <div class="stat" style="flex:1;text-align:center"><div class="l">總數</div><div class="v" style="font-size:17px">${money(tot)}</div></div>
         <div class="stat" style="flex:1;text-align:center"><div class="l">已收</div><div class="v" style="font-size:17px;color:var(--green)">${money(got)}</div></div>
         <div class="stat" style="flex:1;text-align:center"><div class="l">尚欠</div><div class="v" style="font-size:17px;color:${d.owe>0?'var(--red)':'var(--green)'}">${money(Math.max(0,d.owe))}</div></div></div>
+      ${(d.bdeCharges||[]).map(p=>`<div class="item row"><span class="muted">${esc(p.d)}</span><b>🎓 BDE 防禦性駕駛課程</b><span class="right">${money(p.amt)}</span>${p.paid>=p.amt&&p.amt>0?'<span class="tag g">✓</span>':'<span class="tag r">未收</span>'}</div>`).join('')}
       ${(d.pkgCharges||[]).map(p=>`<div class="item row"><span class="muted">${esc(p.d)}</span><b>🎟️ ${esc(p.name)}</b><span class="right">${money(p.amt)}</span></div>`).join('')}
       ${Object.keys(mk).sort().map(k=>`<div style="margin-top:8px"><div class="tag">${k.slice(0,4)}年${Number(k.slice(5,7))}月</div>
         ${mk[k].map(l=>`<div class="item row" style="font-size:12.5px"><span class="muted">${l.d.slice(5)} ${wd(l.d).slice(-1)}</span><span>${esc(l.t)}</span>
@@ -2507,9 +2549,10 @@ function billMonths(sid){
 }
 function billForm(sid){
   const ms=billMonths(sid);
-  if(!ms.length){ alert('呢個學生未有已上完嘅堂，出唔到賬單。'); return; }
+  if(!ms.length && !bdesOf(sid).length){ alert('呢個學生未有已上完嘅堂，又未報BDE，出唔到賬單。'); return; }
   BILL_SID=sid;
   openModal(`<h3>🧾 匯出賬單 — ${esc(stuName(sid))}</h3>
+  ${bdesOf(sid).length?`<div class="muted" style="margin:6px 0;padding:8px;border-radius:8px;background:var(--input)">🎓 BDE課程費 ${money(bdeCharged(sid))}（${bdesOf(sid).length}張）會自動加落張單，唔受月份影響。</div>`:''}
   <label>揀月份（可以剔多過一個）</label>
   <div class="row" style="margin-bottom:8px">
     <button class="btn grey sm" style="flex:1" onclick="billSet(1)">全部剔</button>
@@ -2525,7 +2568,7 @@ function billForm(sid){
   <label>選項</label>
   <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_showpaid" style="width:auto" checked onchange="billPreview()"><span style="font-size:13px">顯示已收咗嘅堂（打✓）</span><span class="muted">唔剔＝只列未收</span></label>
   <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_showpay" style="width:auto" checked onchange="billPreview()"><span style="font-size:13px">顯示付款方式</span></label>
-  ${billLessons(sid).some(l=>l.ltype==='BDE課程')?`<label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_bdesplit" style="width:auto" onchange="billPreview()"><span style="font-size:13px">🎓 BDE課程獨立出一張單</span><span class="muted">剔咗＝BDE同學費分開兩張</span></label>`:''}
+  ${bdesOf(sid).length?`<label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="b_bdesplit" style="width:auto" onchange="billPreview()"><span style="font-size:13px">🎓 BDE課程獨立出一張單</span><span class="muted">剔咗＝BDE同學費分開兩張</span></label>`:''}
   <div id="billSum" class="muted" style="margin-top:10px;font-size:13px"></div>
   <div id="billModeRow" style="display:none;margin-top:8px">
     <div class="row"><button class="btn ${BILL_MODE==='fee'?'':'grey'} sm" style="flex:1" onclick="BILL_MODE='fee';billForm('${sid}')">💵 學費單</button>
@@ -2550,18 +2593,17 @@ function billSet(mode){
 function billData(){
   const sid=BILL_SID;
   const picked=[...document.querySelectorAll('.bck')].filter(c=>c.checked).map(c=>c.value);
-  const all=billLessons(sid).filter(l=>picked.includes(l.date.slice(0,7)));
-  const tot=all.reduce((a,l)=>a+Number(l.fee||0),0);
-  const got=all.reduce((a,l)=>a+paidOfLesson(l),0);
   const showPaid=(document.getElementById('b_showpaid')||{checked:true}).checked;
   const showPay=(document.getElementById('b_showpay')||{checked:true}).checked;
-  let rows=showPaid?all:all.filter(l=>paidOfLesson(l)<Number(l.fee||0));
   const split=(document.getElementById('b_bdesplit')||{checked:false}).checked;
-  if(split && BILL_MODE!=='bde') rows=rows.filter(l=>l.ltype!=='BDE課程');   // 學費單：剔走BDE
-  if(split && BILL_MODE==='bde') rows=rows.filter(l=>l.ltype==='BDE課程');   // BDE單：淨係BDE
-  const t2=split?rows.reduce((a,l)=>a+Number(l.fee||0),0):tot;
-  const g2=split?rows.reduce((a,l)=>a+paidOfLesson(l),0):got;
-  return {sid, picked, all, rows, tot:t2, got:g2, owe:t2-g2, showPay, split};
+  // 學費單唔要BDE；BDE單淨係BDE
+  const useL=(split && BILL_MODE==='bde') ? [] : billLessons(sid).filter(l=>picked.includes(l.date.slice(0,7)));
+  const useB=(split && BILL_MODE!=='bde') ? [] : bdesOf(sid);
+  const tot=useL.reduce((a,l)=>a+Number(l.fee||0),0)+useB.reduce((a,b)=>a+Number(b.fee||0),0);
+  const got=useL.reduce((a,l)=>a+paidOfLesson(l),0)+useB.reduce((a,b)=>a+paidOfBde(b),0);
+  const rows=showPaid?useL:useL.filter(l=>paidOfLesson(l)<Number(l.fee||0));
+  const bd  =showPaid?useB:useB.filter(b=>paidOfBde(b)<Number(b.fee||0));
+  return {sid, picked, all:useL, rows, bd, tot, got, owe:tot-got, showPay, split};
 }
 function billPreview(){
   const el=document.getElementById('billSum'); if(!el) return;
@@ -2570,12 +2612,11 @@ function billPreview(){
   if(!sp) BILL_MODE='fee';
   const d=billData();
   el.innerHTML = (sp?('<b style="color:var(--neon)">而家出緊：'+(BILL_MODE==='bde'?'🎓 BDE獨立單':'💵 學費單（唔含BDE）')+'</b><br>'):'')
-    + (d.picked.length
-    ? `合計 <b>${money(d.tot)}</b>　已收 <b style="color:var(--green)">${money(d.got)}</b>　尚欠 <b style="color:${d.owe>0.004?'var(--red)':'var(--green)'}">${money(d.owe)}</b>　（${d.all.length}項）`
+    + ((d.picked.length||d.bd.length)
+    ? `合計 <b>${money(d.tot)}</b>　已收 <b style="color:var(--green)">${money(d.got)}</b>　尚欠 <b style="color:${d.owe>0.004?'var(--red)':'var(--green)'}">${money(d.owe)}</b>　（${d.all.length+d.bd.length}項${d.bd.length?'，含BDE '+d.bd.length+'張':''}）`
     : '⚠️ 未揀月份');
 }
 function lineName(l){
-  if(l.ltype==='BDE課程') return '🎓 BDE防禦性駕駛課程';
   if((l.ltype||'').includes('考試')) return '<b>'+esc(l.ltype)+'</b>'+(l.rent?' 🚗租車＋':' ')+l.dur+'小時';
   return esc(l.ltype||'課堂')+' '+l.dur+'小時';
 }
@@ -2593,7 +2634,7 @@ function billHTML(){
         const st2=p>=fee?'<span style="color:#1a7a45;font-size:10.5px;font-weight:700">✓已收</span>'
           :(p>0?'<span style="color:#c0392b;font-size:10.5px;font-weight:700">實收'+money(p)+'</span>'
                :'<span style="color:#c0392b;font-size:10.5px;font-weight:700">未收</span>');
-        return `<div style="display:flex;gap:8px;font-size:12px;padding:6px 10px;border-bottom:1px solid #f0f0f0;align-items:baseline${(l.ltype||'').includes('考試')?';background:#fff6f4':(l.ltype==='BDE課程'?';background:#fffaf0':'')}">
+        return `<div style="display:flex;gap:8px;font-size:12px;padding:6px 10px;border-bottom:1px solid #f0f0f0;align-items:baseline${(l.ltype||'').includes('考試')?';background:#fff6f4':''}">
           <span style="color:#555;width:78px;white-space:nowrap">${l.date.slice(5)} ${wd(l.date).slice(-1)}</span>
           <span style="flex:1;color:#333">${l.start}　${lineName(l)}</span>
           <span style="margin-left:auto;font-weight:600;white-space:nowrap">${money(fee)} ${st2}</span></div>`;
@@ -2614,18 +2655,31 @@ function billHTML(){
         <div style="font-size:10.5px;letter-spacing:1px;opacity:.8">已收</div><div style="font-size:19px;font-weight:800">${money(d.got)}</div></div>
       <div style="flex:1;border-radius:10px;padding:10px 6px;text-align:center;background:#1a5c3a;color:#fff">
         <div style="font-size:10.5px;letter-spacing:1px;opacity:.85">尚欠</div><div style="font-size:19px;font-weight:800">${money(d.owe)}</div></div></div>
-    ${grp||'<div style="text-align:center;color:#999;font-size:12px;padding:20px 0">（未揀月份）</div>'}
+    ${d.bd.length?`<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;background:#fdf3e0;color:#8a6d1f;padding:6px 10px;border-radius:7px">
+        <span>🎓 課程費用　${d.bd.length}項</span><span>${money(d.bd.reduce((a,b)=>a+Number(b.fee||0),0))}</span></div>
+      ${d.bd.map(bb=>{
+        const p=paidOfBde(bb), fee=Number(bb.fee||0);
+        const st3=(fee>0&&p>=fee)?'<span style="color:#1a7a45;font-size:10.5px;font-weight:700">✓已收</span>'
+          :(p>0?'<span style="color:#c0392b;font-size:10.5px;font-weight:700">實收'+money(p)+'</span>'
+               :'<span style="color:#c0392b;font-size:10.5px;font-weight:700">未收</span>');
+        return `<div style="display:flex;gap:8px;font-size:12px;padding:6px 10px;border-bottom:1px solid #f0f0f0;align-items:baseline;background:#fffaf0">
+          <span style="color:#555;width:78px;white-space:nowrap">${bb.date.slice(5)} ${wd(bb.date).slice(-1)}</span>
+          <span style="flex:1;color:#333"><b>🎓 BDE 防禦性駕駛課程</b>${bb.note?'　'+esc(bb.note):''}</span>
+          <span style="margin-left:auto;font-weight:600;white-space:nowrap">${money(fee)} ${st3}</span></div>`;
+      }).join('')}</div>`:''}
+    ${grp||(d.bd.length?'':'<div style="text-align:center;color:#999;font-size:12px;padding:20px 0">（未揀月份）</div>')}
     ${d.showPay?`<div style="background:#fffbe8;border:1px solid #f0e0a0;border-radius:10px;padding:11px 13px;font-size:11.5px;line-height:1.9;color:#5a4a10">
       <b>💰 付款方式</b><br>現金${b.email?'　／　e-Transfer：'+esc(b.email):''}<br>${esc(b.note||'')}</div>`:''}
     <div style="text-align:center;font-size:10.5px;color:#999;margin-top:14px">教車師父管理系統自動產生</div></div>`;
 }
 function billPrint(){
-  const d=billData(); if(!d.picked.length){ alert('請最少剔一個月份'); return; }
+  const d=billData(); if(!d.picked.length&&!d.bd.length){ alert('請最少剔一個月份'); return; }
   document.getElementById('printarea').innerHTML=billHTML();
   setTimeout(()=>window.print(),100);
 }
 function billImage(){
-  const d=billData(); if(!d.picked.length){ alert('請最少剔一個月份'); return; }
+  const d=billData(); if(!d.picked.length&&!d.bd.length){ alert('請最少剔一個月份'); return; }
   const box=document.createElement('div');
   box.style.cssText='position:fixed;left:-9999px;top:0;width:420px;background:#fff';
   box.innerHTML=billHTML(); document.body.appendChild(box);
@@ -2647,17 +2701,24 @@ function billImage(){
   document.head.appendChild(sc);
 }
 function billWA(){
-  const d=billData(); if(!d.picked.length){ alert('請最少剔一個月份'); return; }
+  const d=billData(); if(!d.picked.length&&!d.bd.length){ alert('請最少剔一個月份'); return; }
   const s=stu(d.sid)||{}; const b=cfg().biz||{};
   if(!s.phone){ alert('呢個學生未有電話號碼'); return; }
   const mk={}; d.rows.forEach(l=>{ const k=l.date.slice(0,7); (mk[k]=mk[k]||[]).push(l); });
   let t='🧾 學費單 — '+(b.name||'')+'\n'+s.name+'\n━━━━━━━━━━\n';
+  if(d.bd.length){
+    t+='【🎓 課程費用】\n';
+    d.bd.forEach(bb=>{ const p=paidOfBde(bb), fee=Number(bb.fee||0);
+      t+=bb.date+' '+wd(bb.date).slice(-1)+'　BDE防禦性駕駛課程　$'+fee
+        +((fee>0&&p>=fee)?' ✓':(p>0?' (實收$'+p+')':' 未收'))+'\n'; });
+    t+='　小計 $'+d.bd.reduce((a,x)=>a+Number(x.fee||0),0)+'\n\n';
+  }
   Object.keys(mk).sort().forEach(k=>{
     const r=mk[k], st=r.reduce((a,l)=>a+Number(l.fee||0),0);
     t+='【'+Number(k.slice(5,7))+'月】\n';
     r.forEach(l=>{
       const p=paidOfLesson(l), fee=Number(l.fee||0);
-      t+=l.date+' '+wd(l.date).slice(-1)+' '+l.start+'　'+(l.ltype==='BDE課程'?'BDE課程':(l.ltype||'課堂')+' '+l.dur+'hr')
+      t+=l.date+' '+wd(l.date).slice(-1)+' '+l.start+'　'+(l.ltype||'課堂')+' '+l.dur+'hr'
         +'　$'+fee+(p>=fee?' ✓':(p>0?' (實收$'+p+')':' 未收'))+'\n';
     });
     t+='　小計 $'+st+'\n\n';
@@ -2795,7 +2856,7 @@ function bdeChanged(){
   const feeRow=document.getElementById('bdeFeeRow'), doneRow=document.getElementById('bdeDoneRow'), msg=document.getElementById('bdeMsg');
   if(v==='已報讀'){
     feeRow.style.display='block'; doneRow.style.display='block';
-    msg.innerHTML='💡 收費入賬要去「＋排堂/記錄」揀堂類型「🎓BDE課程」開一條記錄。學生完成課程收到確認電郵，就返嚟填上面個日期。';
+    msg.innerHTML='💡 收費入賬去學生頁撳「🎓 報讀 BDE」開一張獨立記錄，金額即刻計入學費結餘同賬單。學生完成課程收到確認電郵，就返嚟填上面個日期。';
   }else if(v==='已完成'){
     feeRow.style.display='none'; doneRow.style.display='block';
     msg.innerHTML='填咗完成日期 → G2等候期即刻由12個月改做8個月，同時計出MTO預計更新日（完成＋'+(cfg().mtoWeeks||8)+'星期），夠鐘會提你上DriveTest查證。';
@@ -2856,6 +2917,7 @@ function delStudent(id){
   DB.payments=DB.payments.filter(p=>p.studentId!==id);
   DB.exams=DB.exams.filter(e=>e.studentId!==id);
   DB.roadtests=DB.roadtests.filter(r=>r.studentId!==id);
+  DB.bdes=(DB.bdes||[]).filter(b=>b.studentId!==id);
   VIEW_STUDENT=null; save();
 }
 
@@ -2875,7 +2937,7 @@ function formLesson(id, presetStu){
   openModal(`<h3>${id?'編輯堂記錄':'排新堂'}</h3>
   <label>學生</label><select id="f_sid" onchange="stuChanged()">${DB.students.map(s=>`<option value="${s.id}" ${s.id===sid?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
   <label>💵 堂類型（自動計價，金額可再改）</label>
-  <select id="f_ltype" onchange="typeChanged()">${['G2堂','G堂','G2考試日','G考試日','BDE課程','自訂'].map(x=>`<option ${ltype===x?'selected':''}>${x}</option>`).join('')}</select>
+  <select id="f_ltype" onchange="typeChanged()">${['G2堂','G堂','G2考試日','G考試日','自訂'].map(x=>`<option ${ltype===x?'selected':''}>${x}</option>`).join('')}</select>
   <div id="examBox" style="display:none;margin-top:8px;padding:10px;background:var(--input);border:1px solid var(--blue);border-radius:10px">
     <div style="font-size:13px;font-weight:700;color:var(--neon)">🏁 考試日安排</div>
     <div id="exCentre" class="muted" style="margin-top:6px;font-size:13px;line-height:1.6"></div>
@@ -2962,7 +3024,6 @@ function bdeFeeOf(s){
 function autoFee(ty,dur,sid){
   const s=stu(sid!==undefined?sid:val('f_sid'));
   const rate=rateOf(ty,s);
-  if(ty==='BDE課程') return bdeFeeOf(s);           // 固定收費，唔按鐘數計
   // 有套票剩餘 → 普通堂收費$0（錢喺開套票嗰陣已經入咗賬）
   if((ty==='G2堂'||ty==='G堂') && s && activePkg(s.id)) return 0;
   if(ty==='G2堂'||ty==='G堂') return rate*dur;
@@ -2994,7 +3055,6 @@ function typeChanged(){
   const dEl=document.getElementById('f_dur');
   const c=document.getElementById('f_durc');
   if(ty.includes('考試')){ dEl.value='C'; c.style.display='block'; if(!c.value) c.value=3; }
-  else if(ty==='BDE課程'){ dEl.value='C'; c.style.display='block'; c.value=c.value||1; }
   else if(ty!=='自訂'){ dEl.value='2'; c.style.display='none'; }
   const rc=document.getElementById('f_rent');
   if(rc && ty.includes('考試')){ const s=stu(val('f_sid')); rc.checked=(s&&s.needRent==='要'); } // 預設跟學生檔案，可再手動改
@@ -3011,11 +3071,6 @@ function calcFee(){
     const s=stu(val('f_sid'));
     const rate=rateOf(ty,s);
     const isG=(ty==='G堂'||ty==='G考試日');
-    if(ty==='BDE課程'){
-      bk.innerHTML='🎓 BDE防禦性駕駛課程・固定收費 ＝ <b style="color:var(--neon)">'+money(f)+'</b>'
-        +'<br><span style="font-size:12px">讀完等候期 12個月 ➜ 8個月。金額可以喺上面「本堂收費」直接改。</span>';
-      return;
-    }
     const pk0=activePkg(val('f_sid'));
     if(pk0&&(ty==='G2堂'||ty==='G堂')){
       bk.innerHTML='🎟️ 用套票扣 1 堂（開套票時已收 '+money(pk0.amount||0)+'）・呢堂收費 <b style="color:var(--neon)">$0</b>'
@@ -3170,11 +3225,6 @@ function saveLesson(id){
     score:val('f_score')?Number(val('f_score')):null, problems:val('f_problems'), nextFocus:val('f_next')};
   if(id){ Object.assign(DB.lessons.find(x=>x.id===id), d); }
   else { d.id=uid(); DB.lessons.push(d); }
-  // 開咗BDE記錄 → 學生檔案自動由「未報」轉「已報讀」，並記低報讀日
-  let bdeNew=false;
-  if(d.ltype==='BDE課程'){ const st=stu(d.studentId);
-    if(st&&(!st.bde||st.bde==='未報')){ st.bde='已報讀'; st.bdeRegDate=st.bdeRegDate||d.date; bdeNew=true; }
-    else if(st&&!st.bdeRegDate){ st.bdeRegDate=d.date; } }
   // 堂費狀態自動處理帳目
   const lid2=id||d.id;
   DB.payments=DB.payments.filter(p=>p.lessonId!==lid2);
@@ -3206,10 +3256,6 @@ function saveLesson(id){
     }
   }
   closeModal(); save();
-  if(d.ltype==='BDE課程' && !id){
-    if(confirm('已開BDE課程記錄'+(bdeNew?'（學生已轉「已報讀」）':'')+'。\n\n要唔要即刻send BDE通知單俾佢？'))
-      { bdeNotice(d.studentId); return; }
-  }
   if(repN){
     const clashes=DB.lessons.filter(l=>l.clashNote).length;
     alert('✅ 一次過排咗 '+(repN+1)+' 堂'+(clashes?('\n\n⚠️ 其中 '+clashes+' 堂同其他堂時間重疊，記得去排堂頁檢查（有紅色標記）。'):''));
@@ -3220,6 +3266,80 @@ function saveLesson(id){
   }
 }
 function delLesson(id){ if(confirm('確定刪除呢堂？（連結嘅自動收款記錄會一齊刪）')){ DB.lessons=DB.lessons.filter(l=>l.id!==id); DB.payments=DB.payments.filter(p=>p.lessonId!==id); save(); } }
+
+/* --- 🎓 BDE 報讀（獨立記錄，唔經排堂） --- */
+function formBde(id, sid){
+  const b = id ? (DB.bdes||[]).find(x=>x.id===id) : null;
+  if(id && !b){ alert('搵唔到呢個BDE記錄'); return; }
+  const s = stu(b ? b.studentId : sid) || DB.students[0];
+  if(!s){ alert('未有學生'); return; }
+  const fee = b ? Number(b.fee||0) : bdeFeeOf(s);
+  openModal('<h3>🎓 '+(b?'修改 BDE 報讀':'報讀 BDE 防禦性駕駛課程')+'</h3>'
+  +'<label>學生 *</label><select id="bd_sid">'+DB.students.map(x=>'<option value="'+x.id+'"'+(x.id===s.id?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select>'
+  +'<label>報讀日期 *</label><input id="bd_date" type="date" value="'+((b&&b.date)||todayStr())+'">'
+  +'<label>💵 課程費用 (CAD)</label><input id="bd_fee" type="number" inputmode="decimal" value="'+fee+'" oninput="bdPayChanged(1)">'
+  +'<div class="muted">預設跟設定頁 '+money(cfg().bdeFee||250)+'（學生檔案有個別價就用嗰個），逐次可以改。</div>'
+  +'<label>💰 收費狀態</label><select id="bd_pay" onchange="bdPayChanged()">'
+  +['未收','已付-現金','已付-e-Transfer'].map(x=>'<option'+(((b&&b.payStatus)||'未收')===x?' selected':'')+'>'+x+'</option>').join('')+'</select>'
+  +'<div id="bd_paidRow" style="display:none"><label>實收金額 (CAD)</label>'
+  +'<input id="bd_paid" type="number" inputmode="decimal" value="'+((b&&b.paid!=null)?b.paid:'')+'" oninput="bdDiff()">'
+  +'<div id="bd_diff" class="muted"></div></div>'
+  +'<label>備註</label><input id="bd_note" value="'+esc((b&&b.note)||'')+'" placeholder="例如：已send登入資料">'
+  +'<div style="margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--green) 14%,transparent);border-left:4px solid var(--green);font-size:13px">'
+  +'<b>✅ 一儲存即刻入賬</b><br><span class="muted">唔使等日期過。學生「學費結餘」同「匯出賬單」即刻計到呢筆。BDE唔會計入堂數／教學時數／月曆。</span></div>'
+  +'<div class="row" style="margin-top:12px">'
+  +'<button class="btn" style="flex:1" onclick="saveBde(\''+(id||'')+'\',0)">💾 儲存</button>'
+  +'<button class="btn green" style="flex:1" onclick="saveBde(\''+(id||'')+'\',1)">💾 儲存＋通知單</button></div>'
+  +'<div class="row" style="margin-top:6px"><button class="btn grey" style="flex:1" onclick="closeModal()">取消</button>'
+  +(id?'<button class="btn red" onclick="delBde(\''+id+'\')">🗑 刪除</button>':'')+'</div>');
+  bdPayChanged(1);
+}
+function bdPayChanged(init){
+  const row=document.getElementById('bd_paidRow'); if(!row) return;
+  const on=(val('bd_pay')||'').startsWith('已付');
+  row.style.display=on?'block':'none';
+  const pi=document.getElementById('bd_paid');
+  if(on&&pi&&!pi.value) pi.value=Number(val('bd_fee')||0);
+  if(!on&&pi&&!init) pi.value='';
+  bdDiff();
+}
+function bdDiff(){
+  const el=document.getElementById('bd_diff'); if(!el) return;
+  const fee=Number(val('bd_fee')||0), p=val('bd_paid');
+  if(p===''||!(val('bd_pay')||'').startsWith('已付')){ el.innerHTML=''; return; }
+  const df=Number(p)-fee;
+  el.innerHTML = Math.abs(df)<0.005 ? '<span style="color:var(--green)">✓ 收足</span>'
+    : (df<0 ? '<span style="color:var(--red)">尚欠 '+money(-df)+'</span>'
+            : '<span style="color:var(--green)">多收 '+money(df)+'（當預繳）</span>');
+}
+function saveBde(id, notice){
+  const sid=val('bd_sid'), date=val('bd_date');
+  if(!sid){ alert('請揀學生'); return; }
+  if(!date){ alert('請填報讀日期'); return; }
+  const pay=val('bd_pay');
+  const d={ studentId:sid, date:date, fee:Number(val('bd_fee'))||0, payStatus:pay,
+    paid: pay.startsWith('已付') ? (val('bd_paid')!==''?Number(val('bd_paid')):(Number(val('bd_fee'))||0)) : null,
+    note: val('bd_note')||'' };
+  DB.bdes=DB.bdes||[];
+  if(id){ Object.assign(DB.bdes.find(x=>x.id===id), d); }
+  else { d.id=uid(); DB.bdes.push(d); }
+  const bid=id||d.id;
+  DB.payments=DB.payments.filter(p=>p.bdeId!==bid);
+  if(d.paid>0) DB.payments.push({id:uid(), studentId:sid, bdeId:bid, amount:d.paid, date:date,
+    method:pay.includes('現金')?'現金':'e-Transfer',
+    note:'BDE課程費（自動記錄）'+(d.paid!==d.fee?('・應收'+money(d.fee)):'')});
+  const st=stu(sid);
+  if(st){ if(!st.bde||st.bde==='未報') st.bde='已報讀'; if(!st.bdeRegDate) st.bdeRegDate=date; }
+  closeModal(); VIEW_STUDENT=sid; TAB='students'; save();
+  if(notice) bdeNotice(sid);
+}
+function delBde(id){
+  const b=(DB.bdes||[]).find(x=>x.id===id); if(!b) return;
+  if(!confirm('刪除呢個BDE報讀記錄（'+b.date+' '+money(b.fee||0)+'）？\n連結嘅自動收款記錄會一齊刪，學費結餘會扣返。')) return;
+  DB.bdes=(DB.bdes||[]).filter(x=>x.id!==id);
+  DB.payments=DB.payments.filter(p=>p.bdeId!==id);
+  closeModal(); save();
+}
 
 /* --- 收款表單 --- */
 function formPayment(sid){
@@ -3324,7 +3444,7 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = initializeFirestore(app, { localCache: persistentLocalCache() }); // 離線都用到，返網自動補傳
 
-const COLLS = ['students','lessons','payments','exams','expenses','roadtests','packages'];
+const COLLS = ['students','lessons','payments','exams','expenses','roadtests','packages','bdes'];
 let UID = null, UNSUB = [], REM = null, GOT = null, SYNCING = 0;
 
 const $ = id => document.getElementById(id);
@@ -3607,8 +3727,8 @@ window.loadStaffProfile = async (uid)=>{
 };
 // 一次過讀某員工嘅營運數（唯讀概覽）
 window.loadStaffData = async (uid)=>{
-  const out={students:[],lessons:[],payments:[],expenses:[]};
-  for(const cl of ['students','lessons','payments','expenses']){
+  const out={students:[],lessons:[],payments:[],expenses:[],bdes:[]};
+  for(const cl of ['students','lessons','payments','expenses','bdes']){
     const s=await getDocs(collection(db,'users',uid,cl));
     s.forEach(x=>{ const d=x.data(); try{ out[cl].push(d.j?JSON.parse(d.j):d); }catch(e){} });
   }
@@ -3651,7 +3771,7 @@ function attach(uid){
   UID = uid;
   REM = { photos:{}, config:null }; COLLS.forEach(c=>REM[c]={});
   GOT = new Set();
-  const need = COLLS.length + 2; // 6集合 + photos + config
+  const need = COLLS.length + 2; // 各集合 + photos + config
   const onErr = e=>{ chip('⚠️ '+(e.code||'讀取錯誤'),true); };
   const first = src=>{
     if(GOT.has(src)) return; GOT.add(src);
@@ -3685,6 +3805,7 @@ function rebuild(){
   d.students.forEach(s=>{ s.photos = ph.filter(p=>p.sid===s.id).sort((a,b)=>a.i-b.i).map(p=>({id:p.id,data:p.data})); });
   d.config = REM.config? (()=>{try{return JSON.parse(REM.config.j);}catch(e){return {};}})() : {};
   DB = migrate(d);
+  if(DB.__mig){ delete DB.__mig; setTimeout(()=>{ if(CLOUD_READY) window.cloudSave(); },1500); }  // 遷移完回寫一次
   // 主題跟雲端（第一次喺新機登入就自動變返你揀嗰款）
   if(typeof syncThemeFromCloud==='function') syncThemeFromCloud();
 }
@@ -3703,7 +3824,7 @@ function decompose(){
     const {photos, ...rest}=s;
     if(rest.id) out.students[rest.id]={ j: JSON.stringify(rest) };
   });
-  ['lessons','payments','exams','expenses','roadtests'].forEach(cl=>{
+  COLLS.filter(c=>c!=='students').forEach(cl=>{     // v3.0修：以前漏咗packages，套票上唔到雲
     (DB[cl]||[]).forEach(it=>{ if(it&&it.id) out[cl][it.id]={ j: JSON.stringify(it) }; });
   });
   out.config = { j: JSON.stringify(DB.config) };
