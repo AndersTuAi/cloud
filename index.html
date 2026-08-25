@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="2.8">
+<meta name="app-ver" content="2.9">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -125,6 +125,14 @@ th{color:var(--sub); font-weight:600; font-size:12px;}
 .cdfoot{padding:9px 13px;background:var(--grey);display:flex;gap:8px;align-items:center;font-size:12px;}
 .cempty{padding:22px 14px;text-align:center;}
 .cempty p{margin:6px 0 12px;font-size:12.5px;}
+/* 🎓 BDE 進度時間軸 */
+.tl{position:relative;padding-left:26px;}
+.tl::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line);}
+.tl .st{position:relative;padding:9px 0;font-size:13px;}
+.tl .st::before{content:"";position:absolute;left:-22px;top:13px;width:12px;height:12px;border-radius:50%;background:var(--grey);border:2px solid var(--line);}
+.tl .st.done::before{background:var(--green);border-color:var(--green);}
+.tl .st.now::before{background:var(--amber);border-color:var(--amber);box-shadow:0 0 0 4px color-mix(in srgb,var(--amber) 25%,transparent);}
+.tl .st .d{font-size:11.5px;color:var(--sub);}
 
 /* ===== 各主題排版個性 ===== */
 /* E 和風便利貼：卡似便利貼（微歪＋膠紙＋虛線） */
@@ -240,7 +248,8 @@ function DEF(){ return {
   },
   cv:4,
   theme:'G', mode:'auto',
-  bdeFee:250, sleepDays:30,
+  bdeFee:250, sleepDays:30, mtoWeeks:8, bdeChaseWeeks:4,
+  bdeTpl:'你好 {name}！🎓\n\n【BDE 防禦性駕駛課程 — 報名確認】\n━━━━━━━━━━\n課程費用：{fee}\n\n📩 接住會點？\n1. 你會收到一封電郵，入面有網址、登入帳號同密碼\n2. 自己上網睇片上堂，跟住喺網上考試\n3. 完成後會收到確認電郵\n4. 之後大約 {weeks} 星期內，MTO 就會更新到你嘅紀錄\n{gain}\n⏰ 提提你\n記得早啲完成網上課程，因為MTO更新要時間，太遲完成就趕唔切提早考。\n\n💰 付款\n現金 ／ e-Transfer：{email}\n\n有咩唔明隨時問我 😊\n{biz}　{phone}',
   biz:{name:'Anders 教車', phone:'(437) 421 833', email:'anderstutu@gmail.com', note:'付完請 WhatsApp 通知我，多謝！🙏'},
   bookUrl:'',
   rt:{c:12,x:3},
@@ -376,6 +385,8 @@ function migrate(d){
   for(const k in def.rtExp){ if(d.config.rtExp[k]===undefined) d.config.rtExp[k]=def.rtExp[k]; }
   (d.students||[]).forEach(s=>{
     if(s.rate!=null && s.rate!=='' && s.rateG2==null){ s.rateG2=Number(s.rate); s.rateG=Number(s.rate); }
+    // v2.9遷移：BDE報讀日同完成日分開存
+    if(s.bde==='已報讀' && s.bdeDate && !s.bdeRegDate){ s.bdeRegDate=s.bdeDate; s.bdeDate=''; }
   });
   const cks=d.config.checks||{};
   for(const k in cks){
@@ -524,7 +535,31 @@ function addMonths(ds,m){
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 }
 function daysTo(ds){ if(!ds) return null; return Math.ceil((new Date(ds+'T00:00')-new Date(new Date().toDateString()))/864e5); }
-function bdeDone(s){ return s && s.bde==='已完成' && s.bdeDate; }
+function bdeDone(s){ return s && s.bde==='已完成' && s.bdeDate; }   // 只有「已完成」先用8個月計（Anders確認）
+function addDays(ds,n){ if(!ds) return null; const d=new Date(new Date(ds+'T00:00').getTime()+n*864e5);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function weeksSince(ds){ if(!ds) return null; return Math.floor(-daysTo(ds)/7); }
+/* BDE 四階段：未報 → 已報讀(bdeRegDate) → 已完成(bdeDate＝收到確認電郵日) → MTO更新(完成+N星期) */
+function mtoReady(s){ return bdeDone(s) ? addDays(s.bdeDate, Number(cfg().mtoWeeks||8)*7) : null; }
+function bdeStage(s){
+  if(!s||!s.bde||s.bde==='未報') return 0;
+  if(s.bde==='已報讀') return 1;
+  if(bdeDone(s)) return s.mtoChecked ? 4 : 3;
+  return 2;   // 標咗已完成但未填日期
+}
+// 報咗名拖住未完成 → 催
+function bdeChaseList(){
+  const w=Number(cfg().bdeChaseWeeks||4);
+  return DB.students.filter(s=>!s.archived && s.bde==='已報讀' && s.bdeRegDate)
+    .map(s=>({s, w:weeksSince(s.bdeRegDate)})).filter(x=>x.w!=null && x.w>=w)
+    .sort((a,b)=>b.w-a.w);
+}
+// 完成咗＋夠鐘（+N星期）→ 提你上DriveTest查下可唔可以提早報考
+function mtoCheckList(){
+  return DB.students.filter(s=>!s.archived && bdeDone(s) && !s.mtoChecked && !s.g2Date)
+    .map(s=>({s, ready:mtoReady(s)})).map(x=>({...x, d:daysTo(x.ready)}))
+    .filter(x=>x.d!=null && x.d<=0).sort((a,b)=>a.d-b.d);
+}
 function lic(s){
   if(!s) return {};
   const r={ g1:s.g1Date||'', g2:s.g2Date||'', full:s.gDate||'', bde:bdeDone(s)?s.bdeDate:'' };
@@ -689,6 +724,165 @@ function centreCard(){
     <p class="muted" style="margin-bottom:0">樣本越多越準。合格率高嘅考場可以優先建議俾學生，亦可以做宣傳賣點。</p></div>`;
 }
 
+/* ================= 🎓 BDE 通知單 ＋ 進度 ================= */
+function bdeGain(s){          // 讀BDE賺幾多：{old,new,months} 或 null
+  const g1=s.g1Date; if(!g1) return null;
+  return {old:addMonths(g1,12), nw:addMonths(g1,8), months:4};
+}
+function bdeCard(sid){
+  const s=stu(sid); if(!s) return '';
+  const st=bdeStage(s);
+  if(st===0) return '';
+  const reg=s.bdeRegDate, done=s.bdeDate, mto=mtoReady(s), w=weeksSince(reg);
+  const chaseW=Number(cfg().bdeChaseWeeks||4);
+  const line=(cls,ic,t,d)=>`<div class="st ${cls}"><b>${ic} ${t}</b>${d?`<div class="d">${d}</div>`:''}</div>`;
+  return `<div class="card"><h3>🎓 BDE 課程進度</h3>
+  <div class="tl">
+    ${line(st>=1?'done':'', '✅','已報讀', (reg?dwd(reg):'未填報讀日期')+(s.bdeFee?'　·　'+money(s.bdeFee):''))}
+    ${line(st>=3?'done':(st<3?'now':''), '⏳','學生自修網上課程',
+       st>=3 ? '已完成' : (w!=null? ('已經 '+w+' 星期'+(w>=chaseW?' — 記得催佢':'')) : '等緊學生完成'))}
+    ${line(st>=3?'done':'', '📧','完成＋收到確認電郵', done?dwd(done):'未填（收到電郵就返嚟填）')}
+    ${line(st>=4?'done':(st===3?'now':''), '🏛️','MTO 更新紀錄',
+       s.mtoChecked ? ('✅ 已查證 '+dwd(s.mtoChecked))
+       : (mto? ('預計 '+dwd(mto)+(daysTo(mto)>0?('　仲有'+daysTo(mto)+'日'):'　夠鐘喇，去查下')) : '等完成日期'))}
+  </div>
+  ${st===3&&mto&&daysTo(mto)<=0?`<div style="margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber);font-weight:700;font-size:13.5px">
+    🏛️ 夠鐘上 DriveTest 查下 ${esc(s.name)} 可唔可以提早報考G2
+    <button class="btn green sm" style="margin-left:8px" onclick="mtoConfirm('${sid}')">✅ 已查證</button></div>`:''}
+  <div class="row" style="margin-top:10px">
+    <button class="btn grey sm" onclick="bdeNotice('${sid}')">🎓 通知單／重發</button>
+    ${st===1&&s.phone?`<button class="btn green sm" onclick="bdeChaseWA('${sid}')">💬 催佢完成</button>`:''}
+    ${s.mtoChecked?`<button class="btn grey sm" onclick="if(confirm('取消「已查證」記號？'))mtoUncheck('${sid}')">↩︎ 取消已查證</button>`:''}
+  </div></div>`;
+}
+function mtoConfirm(sid){ const s=stu(sid); if(!s) return; s.mtoChecked=todayStr(); save(); }
+function mtoUncheck(sid){ const s=stu(sid); if(!s) return; s.mtoChecked=null; save(); }
+function bdeChaseWA(sid){
+  const s=stu(sid); if(!s||!s.phone){ alert('呢個學生未有電話號碼'); return; }
+  const g=bdeGain(s);
+  let t='你好 '+s.name+'！🎓\n提提你 BDE 網上課程仲未完成——\n'
+    +'記得早啲做完，因為完成之後 MTO 大約要 '+(cfg().mtoWeeks||8)+' 星期先更新到你嘅紀錄。\n';
+  if(g) t+='做完之後，你 '+g.nw+' 就可以考G2（原本要等到 '+g.old+'），快咗 '+g.months+' 個月。\n';
+  t+='\n有咩登入問題隨時搵我 😊\n'+((cfg().biz||{}).name||'');
+  const d=(s.phone||'').replace(/\D/g,''); const n=d.length===10?'1'+d:d;
+  window.open('https://wa.me/'+n+'?text='+encodeURIComponent(t),'_blank');
+}
+/* --- 通知單 --- */
+let BDE_SID=null;
+function bdeNotice(sid){
+  const s=stu(sid); if(!s) return;
+  BDE_SID=sid;
+  const g=bdeGain(s), fee=bdeFeeOf(s);
+  openModal(`<h3>🎓 BDE 通知單 — ${esc(s.name)}</h3>
+  <label>收費金額 (CAD)</label><input id="bn_fee" type="number" inputmode="decimal" value="${fee}">
+  <label>選項</label>
+  <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="bn_gain" style="width:auto" ${g?'checked':''} ${g?'':'disabled'}>
+    <span style="font-size:13px">顯示「提早幾多個月考G2」</span>${g?'':'<span class="muted">（未填G1合格日，計唔到）</span>'}</label>
+  <label class="item row" style="cursor:pointer;margin:0"><input type="checkbox" id="bn_pay" style="width:auto" checked><span style="font-size:13px">顯示付款方式</span></label>
+  ${g?`<div style="margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--green) 14%,transparent);border-left:4px solid var(--green)">
+    <b>佢會提早 ${g.months} 個月考到 G2</b><br><span class="muted">原本 ${g.old} → 讀完BDE可以 ${g.nw} 考</span></div>`
+   :`<div class="muted" style="margin-top:8px">💡 填咗學生嘅「G1筆試合格日」，通知單就會自動計出提早幾多個月——係最好嘅賣點。</div>`}
+  <label>送出方式</label>
+  <div class="row">
+    <button class="btn green" style="flex:1" onclick="bdeWA()">💬 WhatsApp</button>
+    <button class="btn" style="flex:1" onclick="bdePrint()">📄 PDF</button>
+    <button class="btn grey" style="flex:1" onclick="bdeImage()">🖼️ 圖片</button></div>
+  <div class="row" style="margin-top:8px"><button class="btn grey" style="flex:1" onclick="closeModal()">稍後再send</button></div>`);
+}
+function bdeOpts(){
+  const s=stu(BDE_SID)||{};
+  return { s, fee:Number(val('bn_fee'))||bdeFeeOf(s),
+    gain:(document.getElementById('bn_gain')||{checked:false}).checked ? bdeGain(s) : null,
+    pay:(document.getElementById('bn_pay')||{checked:true}).checked };
+}
+function bdeText(){
+  const {s,fee,gain,pay}=bdeOpts(), b=cfg().biz||{};
+  const gainTxt = gain ? ('\n🎉 你賺咗幾多？\n讀完BDE，G1等候期由 12個月 減到 8個月\n你原本要等到 '+gain.old+' 先考到G2\n而家 '+gain.nw+' 就可以考 —— 快咗 '+gain.months+' 個月！\n') : '\n';
+  return (cfg().bdeTpl||'')
+    .replace(/{name}/g, s.name||'')
+    .replace(/{fee}/g, money(fee))
+    .replace(/{weeks}/g, cfg().mtoWeeks||8)
+    .replace(/{gain}/g, gainTxt)
+    .replace(/{email}/g, pay ? (b.email||'（現金）') : '（詳情問我）')
+    .replace(/{biz}/g, b.name||'')
+    .replace(/{phone}/g, b.phone||'');
+}
+function bdeWA(){
+  const {s}=bdeOpts();
+  if(!s.phone){ alert('呢個學生未有電話號碼'); return; }
+  const d=(s.phone||'').replace(/\D/g,''); const n=d.length===10?'1'+d:d;
+  window.open('https://wa.me/'+n+'?text='+encodeURIComponent(bdeText()),'_blank');
+}
+function bdeHTML(){
+  const {s,fee,gain,pay}=bdeOpts(), b=cfg().biz||{};
+  const step=(n,t)=>`<div style="display:flex;gap:9px;padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:12.5px"><b style="color:#1a5c3a;min-width:16px">${n}</b><span>${t}</span></div>`;
+  return `<div style="max-width:420px;margin:0 auto;background:#fff;color:#222;padding:22px 20px 26px;font-family:-apple-system,'PingFang HK','PingFang TC',sans-serif;line-height:1.55">
+    <div style="text-align:center"><div style="font-size:32px">🎓</div>
+      <div style="font-size:17px;font-weight:800;margin-top:2px">BDE 防禦性駕駛課程</div>
+      <div style="font-size:11.5px;color:#888;margin-top:3px;line-height:1.6">報名確認 ・ 費用單<br>${esc(b.name||'')}${b.phone?'　📞 '+esc(b.phone):''}　·　${todayStr()}</div></div>
+    <div style="background:#f6f6f6;border-radius:10px;padding:11px 13px;margin:14px 0">
+      <div style="font-size:15px;font-weight:800">${esc(s.name||'')}</div>
+      <div style="font-size:11.5px;color:#666;line-height:1.8;margin-top:3px">${s.phone?'📞 '+esc(s.phone)+'<br>':''}${s.g1Date?'G1 筆試合格：'+esc(s.g1Date):''}</div></div>
+    <div style="background:#1a5c3a;color:#fff;border-radius:12px;padding:14px;text-align:center;margin-bottom:14px">
+      <div style="font-size:11px;opacity:.85;letter-spacing:2px">課 程 費 用</div>
+      <div style="font-size:32px;font-weight:800">${money(fee)}</div></div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;background:#eef3f0;color:#1a5c3a;padding:5px 10px;border-radius:6px">📩 接住嘅步驟</div>
+      ${step(1,'你會收到一封電郵，入面有課程網址、登入帳號同密碼')}
+      ${step(2,'自己上網睇片上堂（可以分幾次），跟住喺網上考試')}
+      ${step(3,'完成後會收到確認電郵')}
+      ${step(4,'之後約 <b>'+(cfg().mtoWeeks||8)+' 星期</b> 內，MTO 更新到你嘅駕駛紀錄')}
+    </div>
+    ${gain?`<div style="background:#eef8f1;border:1px solid #b9dfc8;border-radius:10px;padding:11px 13px;font-size:13px">
+      <b>🎉 讀完BDE，你可以提早考G2</b><br>G1 等候期由 <b>12 個月</b> 減到 <b>8 個月</b>
+      <div style="margin-top:6px;line-height:1.9">原本可考日：<span style="text-decoration:line-through;color:#888">${gain.old}</span><br>
+      讀完之後：<span style="font-size:16px;font-weight:800;color:#1a5c3a">${gain.nw}</span>　<span style="color:#1a5c3a;font-weight:700">快咗 ${gain.months} 個月</span></div></div>`:''}
+    <div style="background:#fffbe8;border:1px solid #f0e0a0;border-radius:10px;padding:10px 12px;font-size:11.5px;line-height:1.85;color:#5a4a10;margin-top:12px">
+      <b>⏰ 提提你</b><br>記得早啲完成網上課程——MTO更新要時間，太遲完成會趕唔切提早考。
+      ${pay?`<br><br><b>💰 付款方式</b><br>現金${b.email?' ／ e-Transfer：'+esc(b.email):''}<br>${esc(b.note||'')}`:''}</div>
+    <div style="text-align:center;font-size:10.5px;color:#999;margin-top:12px">教車師父管理系統自動產生　·　BDE 為安省政府認可課程</div></div>`;
+}
+function bdePrint(){ document.getElementById('printarea').innerHTML=bdeHTML(); setTimeout(()=>window.print(),100); }
+function bdeImage(){
+  const {s}=bdeOpts();
+  const box=document.createElement('div');
+  box.style.cssText='position:fixed;left:-9999px;top:0;width:420px;background:#fff';
+  box.innerHTML=bdeHTML(); document.body.appendChild(box);
+  const go=()=>window.html2canvas(box,{scale:2,backgroundColor:'#fff'}).then(cv=>{
+    box.remove();
+    cv.toBlob(bl=>{ const url=URL.createObjectURL(bl); const a=document.createElement('a');
+      a.href=url; a.download='BDE通知單_'+(s.name||'')+'_'+todayStr()+'.png'; a.click();
+      setTimeout(()=>{ window.open(url,'_blank'); URL.revokeObjectURL(url); },300); },'image/png');
+  }).catch(e=>{ box.remove(); alert('出圖失敗：'+e.message+'\n可以改用「PDF」。'); });
+  if(window.html2canvas) return go();
+  const sc=document.createElement('script');
+  sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  sc.onload=go; sc.onerror=()=>{ box.remove(); alert('載入出圖工具失敗（可能冇網）。可以改用「PDF」。'); };
+  document.head.appendChild(sc);
+}
+/* --- 主頁：BDE催促 ＋ MTO查證 --- */
+function bdeCards(){
+  const chase=bdeChaseList(), mto=mtoCheckList();
+  let h='';
+  if(mto.length) h+=`<div class="card" style="margin-top:12px;border-color:var(--amber)"><h3>🏛️ 夠鐘上 DriveTest 查證（BDE已完成 ＋ ${cfg().mtoWeeks||8}星期）</h3>
+    ${mto.map(x=>`<div class="item row">
+      <b onclick="VIEW_STUDENT='${x.s.id}';TAB='students';render()" style="cursor:pointer">${esc(x.s.name)}</b>
+      <span class="tag a">預計已更新</span>
+      <span class="muted">完成 ${esc(x.s.bdeDate)}　·　可考G2 ${esc(lic(x.s).g2Ready||'—')}</span>
+      <span class="right"></span>
+      <button class="btn green sm" onclick="mtoConfirm('${x.s.id}')">✅ 已查證</button></div>`).join('')}
+    <p class="muted" style="margin-bottom:0">上 DriveTest 睇下佢嘅BDE入咗系統未，入咗就可以幫佢book早四個月嘅G2。撳「已查證」就唔會再提。</p></div>`;
+  if(chase.length) h+=`<div class="card" style="margin-top:12px;border-color:var(--amber)"><h3>🎓 BDE 報咗名未完成 — 記得催</h3>
+    ${chase.map(x=>`<div class="item row">
+      <b onclick="VIEW_STUDENT='${x.s.id}';TAB='students';render()" style="cursor:pointer">${esc(x.s.name)}</b>
+      <span class="tag ${x.w>=8?'r':'a'}">已經 ${x.w} 星期</span>
+      <span class="muted">${esc(dwd(x.s.bdeRegDate))} 報讀</span>
+      <span class="right"></span>
+      ${x.s.phone?`<button class="btn green sm" onclick="bdeChaseWA('${x.s.id}')">💬 催佢</button>`:''}</div>`).join('')}
+    <p class="muted" style="margin-bottom:0">拖得越耐，越遲享受到提早4個月考G2。</p></div>`;
+  return h;
+}
+
 /* ================= 🪪 牌照進度卡 ================= */
 function licCard(sid){
   const s=stu(sid); if(!s) return '';
@@ -705,8 +899,11 @@ function licCard(sid){
     ${row('🏆','Full G',L.full, L.full?'':(L.fullReady?('可考日 '+L.fullReady):''))}
     ${b?`<div style="margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,${b.c} 14%,transparent);color:${b.c};font-weight:${b.hot?'800':'600'};font-size:14px">${b.t}
       ${L.target&&L.stage!=='done'?`<span style="font-weight:400;font-size:12px"> · 可考日 ${esc(dwd(L.target))}</span>`:''}</div>`:''}
-    ${L.bde?`<div class="muted" style="margin-top:6px">🎓 BDE ${esc(dwd(L.bde))} 完成 → G2等候期由12個月減至8個月</div>`:
-      (L.g1&&!L.g2?`<div class="muted" style="margin-top:6px">💡 未讀BDE。讀完可以早4個月考G2（${esc(addMonths(L.g1,8))}），值得同佢講。</div>`:'')}
+    ${L.bde?`<div class="muted" style="margin-top:6px">🎓 BDE ${esc(dwd(L.bde))} 完成 → G2等候期由12個月減至8個月${
+        s.mtoChecked?'　·　✅ MTO已查證 '+esc(s.mtoChecked)
+        :(mtoReady(s)?('<br><span style="color:var(--amber)">🏛️ MTO預計 '+esc(mtoReady(s))+' 更新'+(daysTo(mtoReady(s))>0?('（仲有'+daysTo(mtoReady(s))+'日）'):'——夠鐘去DriveTest查證')+'</span>'):'')}</div>`:
+      (s.bde==='已報讀'?`<div class="muted" style="margin-top:6px;color:var(--amber)">🎓 BDE已報讀但未完成——完成前仍然用12個月計。催佢快啲讀完。</div>`:
+      (L.g1&&!L.g2?`<div class="muted" style="margin-top:6px">💡 未讀BDE。讀完可以早4個月考G2（${esc(addMonths(L.g1,8))}），值得同佢講。</div>`:''))}
     ${dl!=null&&dl<=183&&!L.full?`<div style="margin-top:6px;color:var(--red);font-size:12.5px;font-weight:700">⚠️ 5年死線 ${esc(L.deadline)}（仲有${dl}日）——過咗要重新考G1</div>`:''}
     ${s.archived?'<div class="muted" style="margin-top:6px">📦 已封存，喺列表永遠沉底。喺「編輯」可以取消。</div>':''}</div>`;
 }
@@ -945,7 +1142,7 @@ function vDash(){
   if(DASHSUB==='feed'){
     return sub
       + (todayCard||'<div class="card"><h3>🗓️ 今日／聽日堂表</h3><div class="muted">今日同聽日未有排堂</div></div>')
-      + fillCard + licDueCard() + sleepCard() + upCard + exCard;
+      + fillCard + licDueCard() + bdeCards() + sleepCard() + upCard + exCard;
   }
   return sub + centreCard() + `
   <div class="grid2">
@@ -1041,6 +1238,7 @@ function vStudentDetail(id){
     <button class="btn red" onclick="rtStart('${id}')">🏁 模擬路試</button>
   </div>
   ${licCard(id)}
+  ${bdeCard(id)}
   ${pkgCard(id)}
   ${(()=>{
     const rts=DB.roadtests.filter(r=>r.studentId===id).sort((a,b)=>b.date.localeCompare(a.date));
@@ -1923,7 +2121,17 @@ function vSettings(){
     <label>G堂時薪 (CAD/小時)</label><input id="s_g" type="number" inputmode="decimal" value="${cfg().rates.g}">
     <label>考試日租車費 (CAD)</label><input id="s_rental" type="number" inputmode="decimal" value="${cfg().rates.rental}">
     <label>🎓 BDE課程預設收費 (CAD)</label><input id="s_bdefee" type="number" inputmode="decimal" value="${cfg().bdeFee}">
-    <button class="btn sm" style="margin-top:8px" onclick="cfg().bdeFee=Number(val('s_bdefee'))||0;save();alert('已更新BDE預設收費')">儲存BDE收費</button>
+    <button class="btn sm" style="margin-top:8px" onclick="cfg().bdeFee=Number(val('s_bdefee'))||0;save();alert('已更新BDE預設收費')">儲存BDE收費</button></div>
+  <div class="card"><h3>🎓 BDE 課程設定</h3>
+    <div class="grid2">
+      <div><label style="margin-top:0">MTO更新預計（星期）</label><input id="s_mtow" type="number" inputmode="numeric" value="${cfg().mtoWeeks}"></div>
+      <div><label style="margin-top:0">報咗名幾耐未完成先催（星期）</label><input id="s_chasew" type="number" inputmode="numeric" value="${cfg().bdeChaseWeeks}"></div>
+    </div>
+    <button class="btn sm" style="margin-top:8px" onclick="cfg().mtoWeeks=Number(val('s_mtow'))||8;cfg().bdeChaseWeeks=Number(val('s_chasew'))||4;save();alert('已更新')">儲存</button>
+    <label>💬 BDE通知單文字模板</label>
+    <textarea id="s_bdetpl" rows="12" style="font-size:12.5px">${esc(cfg().bdeTpl)}</textarea>
+    <button class="btn sm" style="margin-top:8px" onclick="cfg().bdeTpl=document.getElementById('s_bdetpl').value;save();alert('已更新模板')">儲存模板</button>
+    <p class="muted" style="margin-bottom:0">代號：{name}學生名 {fee}課程費 {weeks}MTO星期數 {gain}提早幾多個月嗰段（自動計） {email}收款email {biz}公司名 {phone}電話</p>
     <button class="btn sm" style="margin-top:10px" onclick="cfg().rates={g2:Number(val('s_g2'))||0,g:Number(val('s_g'))||0,rental:Number(val('s_rental'))||0};save();alert('已更新收費')">儲存收費</button>
     <p class="muted" style="margin-bottom:0">呢度係<b>全局預設價</b>——學生冇設獨立時薪先會用。每個學生可以喺佢嘅資料入面設自己嘅時薪。考試日收費 = 租車費 + 時數 × 時薪。排堂時金額仍可逐堂自己改。</p></div>
   <div class="card"><h3>🏁 模擬路試合格門檻</h3>
@@ -2005,7 +2213,7 @@ function vSettings(){
   <div class="card"><h3>⚠️ 危險區</h3>
     <button class="btn red" onclick="if(confirm('確定清除所有資料？呢個動作冇得返轉頭！建議先匯出備份。')&&confirm('再次確認：全部學生資料將被刪除？')){DB=blank();save();}">清除所有資料</button>
     <div class="row" style="margin-top:10px"><button class="btn sm" onclick="checkUpdate(true)">🔄 檢查更新</button></div>
-    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（月曆／重複排堂／里數／自助連結／套票／休眠提醒／考場合格率／牌照里程碑）· 2026-08-12
+    <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（月曆／重複排堂／里數／自助連結／套票／休眠提醒／考場合格率／牌照里程碑／BDE通知單）· 2026-08-13
     <br><label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">😴 幾多日冇上堂算休眠<input id="s_sleep" type="number" style="width:70px" value="${cfg().sleepDays}"><button class="btn sm" onclick="cfg().sleepDays=Number(val('s_sleep'))||30;save()">存</button></label></p></div>`;
 }
 
@@ -2561,7 +2769,9 @@ function formStudent(id){
   <select id="f_bde" onchange="bdeChanged()">
     ${['未報','已報讀','已完成'].map(x=>`<option ${(s.bde||'未報')===x?'selected':''}>${x}</option>`).join('')}</select>
   <div id="bdeRow" style="display:none">
-    <label id="bdeDateLbl">日期</label><input id="f_bdedate" type="date" value="${s.bdeDate||''}">
+    <label>報讀日期</label><input id="f_bderegd" type="date" value="${s.bdeRegDate||''}">
+    <div id="bdeDoneRow"><label>📧 收到完成確認電郵日期　<span class="muted" style="font-weight:400">填咗即刻用8個月計，同時計MTO更新日</span></label>
+      <input id="f_bdedate" type="date" value="${s.bdeDate||''}"></div>
     <div id="bdeFeeRow"><label>💵 呢個學生嘅 BDE 價 (CAD)　<span class="muted" style="font-weight:400">開BDE記錄時自動用呢個價</span></label>
       <input id="f_bdefee" type="number" inputmode="decimal" value="${s.bdeFee!=null?s.bdeFee:cfg().bdeFee}" placeholder="${cfg().bdeFee}"></div>
     <div class="muted" id="bdeMsg" style="margin-top:4px"></div>
@@ -2582,13 +2792,13 @@ function formStudent(id){
 function bdeChanged(){
   const v=val('f_bde'); const row=document.getElementById('bdeRow'); if(!row) return;
   row.style.display=(v==='未報')?'none':'block';
-  const feeRow=document.getElementById('bdeFeeRow'), lbl=document.getElementById('bdeDateLbl'), msg=document.getElementById('bdeMsg');
+  const feeRow=document.getElementById('bdeFeeRow'), doneRow=document.getElementById('bdeDoneRow'), msg=document.getElementById('bdeMsg');
   if(v==='已報讀'){
-    feeRow.style.display='block'; lbl.textContent='報讀日期';
-    msg.innerHTML='💡 呢度只係<b>記錄狀態</b>。要<b>收費入賬</b>就去「＋排堂/記錄」揀堂類型「🎓BDE課程」開一條記錄（自動用下面呢個價）。';
+    feeRow.style.display='block'; doneRow.style.display='block';
+    msg.innerHTML='💡 收費入賬要去「＋排堂/記錄」揀堂類型「🎓BDE課程」開一條記錄。學生完成課程收到確認電郵，就返嚟填上面個日期。';
   }else if(v==='已完成'){
-    feeRow.style.display='none'; lbl.textContent='完成日期';
-    msg.innerHTML='純記錄（學生自己讀過，唔收費）。學生卡會出 🎓BDE 標籤。';
+    feeRow.style.display='none'; doneRow.style.display='block';
+    msg.innerHTML='填咗完成日期 → G2等候期即刻由12個月改做8個月，同時計出MTO預計更新日（完成＋'+(cfg().mtoWeeks||8)+'星期），夠鐘會提你上DriveTest查證。';
   }
 }
 function renderPhotoList(){
@@ -2630,7 +2840,10 @@ function saveStudent(id){
     examDate:val('f_exdate')||'', examTime:val('f_extime')||'', needRent:val('f_needrent'),
     g1Date:val('f_g1d')||'', g2Date:val('f_g2d')||'', gDate:val('f_gd')||'',
     archived:!!(document.getElementById('f_arch')&&document.getElementById('f_arch').checked),
-    bde:val('f_bde'), bdeDate:(val('f_bde')!=='未報'?val('f_bdedate'):''),
+    bde:val('f_bde'),
+    bdeRegDate:(val('f_bde')!=='未報'?val('f_bderegd'):''),
+    bdeDate:(val('f_bde')!=='未報'?val('f_bdedate'):''),
+    mtoChecked:(id?(stu(id)||{}).mtoChecked:null)||null,
     bdeFee:(val('f_bde')==='已報讀'&&val('f_bdefee')!=='' ? Number(val('f_bdefee')) : null),
     photos:TMP_PHOTOS};
   if(id){ Object.assign(stu(id), d); } else { d.id=uid(); DB.students.push(d); }
@@ -2957,8 +3170,11 @@ function saveLesson(id){
     score:val('f_score')?Number(val('f_score')):null, problems:val('f_problems'), nextFocus:val('f_next')};
   if(id){ Object.assign(DB.lessons.find(x=>x.id===id), d); }
   else { d.id=uid(); DB.lessons.push(d); }
-  // 開咗BDE記錄 → 學生檔案自動由「未報」轉「已報讀」
-  if(d.ltype==='BDE課程'){ const st=stu(d.studentId); if(st&&(!st.bde||st.bde==='未報')){ st.bde='已報讀'; st.bdeDate=st.bdeDate||d.date; } }
+  // 開咗BDE記錄 → 學生檔案自動由「未報」轉「已報讀」，並記低報讀日
+  let bdeNew=false;
+  if(d.ltype==='BDE課程'){ const st=stu(d.studentId);
+    if(st&&(!st.bde||st.bde==='未報')){ st.bde='已報讀'; st.bdeRegDate=st.bdeRegDate||d.date; bdeNew=true; }
+    else if(st&&!st.bdeRegDate){ st.bdeRegDate=d.date; } }
   // 堂費狀態自動處理帳目
   const lid2=id||d.id;
   DB.payments=DB.payments.filter(p=>p.lessonId!==lid2);
@@ -2990,6 +3206,10 @@ function saveLesson(id){
     }
   }
   closeModal(); save();
+  if(d.ltype==='BDE課程' && !id){
+    if(confirm('已開BDE課程記錄'+(bdeNew?'（學生已轉「已報讀」）':'')+'。\n\n要唔要即刻send BDE通知單俾佢？'))
+      { bdeNotice(d.studentId); return; }
+  }
   if(repN){
     const clashes=DB.lessons.filter(l=>l.clashNote).length;
     alert('✅ 一次過排咗 '+(repN+1)+' 堂'+(clashes?('\n\n⚠️ 其中 '+clashes+' 堂同其他堂時間重疊，記得去排堂頁檢查（有紅色標記）。'):''));
