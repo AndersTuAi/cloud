@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="3.1">
+<meta name="app-ver" content="3.1.1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3382,6 +3382,7 @@ function formLesson(id, presetStu){
   <button class="btn grey" onclick="closeModal()">取消</button></div>`);
   NEWDATE=null;
   renderChecks(); payChanged(true); prepaidNote();
+  autoPickup();          // 開表單嗰一下就帶入學生登記地址（唔會蓋走已填嘅）
   if(ltype.includes('考試')){
     const rc=document.getElementById('f_rent');
     rc.checked = (l.rent!=null) ? !!l.rent : (id ? true : (st0.needRent==='要')); // 舊堂未有rent欄位當有租車（同舊計法一致）
