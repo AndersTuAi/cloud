@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="3.1.1">
+<meta name="app-ver" content="3.2">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -250,6 +250,7 @@ function DEF(){ return {
   cv:4,
   theme:'G', mode:'auto',
   bdeFee:250, sleepDays:30, mtoWeeks:8, bdeChaseWeeks:4, kmDefault:0,
+  expCats:['入油','維修保養','保險','洗車','牌照／驗車','停車／路費','電話／上網','廣告宣傳','工具用品','其他'],
   bdeTpl:'你好 {name}！🎓\n\n【BDE 防禦性駕駛課程 — 報名確認】\n━━━━━━━━━━\n課程費用：{fee}\n\n📩 接住會點？\n1. 你會收到一封電郵，入面有網址、登入帳號同密碼\n2. 自己上網睇片上堂，跟住喺網上考試\n3. 完成後會收到確認電郵\n4. 之後大約 {weeks} 星期內，MTO 就會更新到你嘅紀錄\n{gain}\n⏰ 提提你\n記得早啲完成網上課程，因為MTO更新要時間，太遲完成就趕唔切提早考。\n\n💰 付款\n現金 ／ e-Transfer：{email}\n\n有咩唔明隨時問我 😊\n{biz}　{phone}',
   biz:{name:'Anders 教車', phone:'(437) 421 833', email:'anderstutu@gmail.com', note:'付完請 WhatsApp 通知我，多謝！🙏'},
   bookUrl:'',
@@ -379,6 +380,7 @@ function migrate(d){
   d.roadtests = d.roadtests || [];
   d.packages = d.packages || [];
   d.bdes = d.bdes || [];
+  if(!Array.isArray(d.config.expCats) || !d.config.expCats.length) d.config.expCats = def.expCats.slice();
   // v1.2遷移：考場地址庫補漏 + 學生單一時薪拆做G2/G兩個
   d.config.centreAddr = d.config.centreAddr || {};
   for(const k in def.centreAddr){ if(d.config.centreAddr[k]===undefined) d.config.centreAddr[k]=def.centreAddr[k]; }
@@ -1766,7 +1768,8 @@ function vMoney(){
   const keys=[...new Set([...Object.keys(inc),...Object.keys(exp)])].sort().reverse().slice(0,12);
   const owedList=DB.students.map(s=>({s,o:owedOf(s.id)})).filter(x=>x.o>0).sort((a,b)=>b.o-a.o);
   const pays=[...DB.payments].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  const exps=[...(DB.expenses||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const expAllRows=[...(DB.expenses||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const exps=EXP_ALL?expAllRows:expAllRows.slice(0,30);
   const total=DB.payments.reduce((a,p)=>a+Number(p.amount),0);
   const totalExp=(DB.expenses||[]).reduce((a,e)=>a+Number(e.amount),0);
   const incM=inc[thisM]||0, expM=exp[thisM]||0, profitM=incM-expM;
@@ -1777,11 +1780,16 @@ function vMoney(){
     <div class="stat"><div class="l">本月盈利</div><div class="v" style="color:${profitM>=0?'var(--green)':'var(--red)'}">${money(profitM)}</div></div>
     <div class="stat"><div class="l">未收學費</div><div class="v" style="color:var(--red)">${money(owedList.reduce((a,x)=>a+x.o,0))}</div></div>
   </div>
-  <div class="card" style="margin-top:12px"><div class="row"><h3 style="margin:0">💸 支出記錄</h3>
+  <div class="card" style="margin-top:12px"><div class="row"><h3 style="margin:0">💸 支出記錄<span class="muted" style="font-weight:400">（${expAllRows.length}筆）</span></h3>
     <button class="btn red sm right" onclick="formExpense()">＋ 加支出</button></div>
-    ${exps.length?exps.map(e=>`<div class="item row"><b>${money(e.amount)}</b><span>${esc(e.name)}</span>
+    ${expCatCard()}
+    ${exps.length?exps.map(e=>`<div class="item row"><b>${money(e.amount)}</b>
+      ${e.cat?`<span class="tag">${esc(e.cat)}</span>`:'<span class="tag" style="opacity:.55">未分類</span>'}
+      <span>${esc(e.name)}</span>
       <span class="muted right">${dwd(e.date)}</span>
-      <button class="btn red sm" onclick="delExpense('${e.id}')">✕</button></div>`).join(''):'<div class="muted" style="margin-top:8px">未有支出記錄（例：入油、換油、保險、洗車）</div>'}</div>
+      <button class="btn grey sm" onclick="formExpense('${e.id}')">✏️</button>
+      <button class="btn red sm" onclick="delExpense('${e.id}')">✕</button></div>`).join(''):'<div class="muted" style="margin-top:8px">未有支出記錄（例：入油、換油、保險、洗車）</div>'}
+    ${expAllRows.length>30?`<button class="btn grey sm" style="margin-top:8px;width:100%" onclick="EXP_ALL=!EXP_ALL;render()">${EXP_ALL?'▲ 只顯示最近 30 筆':'▼ 顯示全部 '+expAllRows.length+' 筆'}</button>`:''}</div>
   ${owedList.length?`<div class="card"><h3>⚠️ 欠學費名單</h3>${owedList.map(x=>`
     <div class="item row"><b>${esc(x.s.name)}</b><span class="muted">📞 ${esc(x.s.phone||'')}</span>
     <span style="color:var(--red);font-weight:700">${money(x.o)}</span>
@@ -1795,21 +1803,50 @@ function vMoney(){
     ${pays.length?pays.map(p=>`<div class="item row"><b>${money(p.amount)}</b><span>${esc(stuName(p.studentId))}</span>
       <span class="muted right">${p.date} ${esc(p.method||'')}</span></div>`).join(''):'<div class="muted">未有記錄</div>'}</div>`;
 }
-function formExpense(){
-  openModal(`<h3>💸 新增支出</h3>
-  <label>日期</label><input id="f_date" type="date" value="${todayStr()}">
-  <label>項目名稱（例：入油、換油、保險）</label><input id="f_ename">
-  <label>金額 (CAD)</label><input id="f_eamt" type="number" inputmode="decimal" step="0.01">
-  <div class="row" style="margin-top:14px"><button class="btn red" onclick="saveExpense()">儲存</button>
-  <button class="btn grey" onclick="closeModal()">取消</button></div>`);
+let EXP_ALL=false, EXP_YEAR=null;
+/* 今年支出按類別小計（報稅用） */
+function expCatCard(){
+  const y=String(EXP_YEAR||new Date().getFullYear());
+  const rows=(DB.expenses||[]).filter(e=>(e.date||'').startsWith(y));
+  if(!rows.length) return '';
+  const m={};
+  rows.forEach(e=>{ const k=e.cat||'未分類'; m[k]=(m[k]||0)+Number(e.amount||0); });
+  const arr=Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  const tot=arr.reduce((a,x)=>a+x[1],0);
+  const yrs=[...new Set((DB.expenses||[]).map(e=>(e.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  return '<div style="margin-top:8px;padding:9px 10px;border-radius:9px;background:var(--input)">'
+    +'<div class="row" style="margin-bottom:6px"><b style="font-size:12.5px">📊 '+y+' 年支出分類</b>'
+    +(yrs.length>1?'<select style="width:auto;padding:3px 6px;font-size:12px" onchange="EXP_YEAR=this.value;render()">'
+        +yrs.map(k=>'<option'+(k===y?' selected':'')+'>'+k+'</option>').join('')+'</select>':'')
+    +'<b class="right" style="color:var(--red)">'+money(tot)+'</b></div>'
+    +'<div class="row" style="gap:5px">'
+    +arr.map(x=>'<span class="tag">'+esc(x[0])+' '+money(x[1])+'</span>').join('')
+    +'</div></div>';
 }
-function saveExpense(){
+function formExpense(id){
+  const e = id ? (DB.expenses||[]).find(x=>x.id===id) : null;
+  if(id && !e){ alert('搵唔到呢筆支出'); return; }
+  const cats=(cfg().expCats||[]).slice();
+  const cur=(e&&e.cat)||'';
+  if(cur && !cats.includes(cur)) cats.unshift(cur);
+  openModal(`<h3>💸 ${e?'修改支出':'新增支出'}</h3>
+  <label>日期</label><input id="f_date" type="date" value="${(e&&e.date)||todayStr()}">
+  <label>類別</label><select id="f_ecat">${['<option value="">（未分類）</option>'].concat(cats.map(c=>`<option${cur===c?' selected':''}>${esc(c)}</option>`)).join('')}</select>
+  <label>項目名稱（例：Shell 入油、換機油、車保月供）</label><input id="f_ename" value="${esc((e&&e.name)||'')}">
+  <label>金額 (CAD)</label><input id="f_eamt" type="number" inputmode="decimal" step="0.01" value="${e?e.amount:''}">
+  <div class="row" style="margin-top:14px"><button class="btn red" style="flex:1" onclick="saveExpense('${id||''}')">儲存</button>
+  <button class="btn grey" style="flex:1" onclick="closeModal()">取消</button>
+  ${id?`<button class="btn red" onclick="delExpense('${id}')">🗑 刪除</button>`:''}</div>`);
+}
+function saveExpense(id){
   const name=val('f_ename'), amount=Number(val('f_eamt'));
   if(!name||!amount){alert('請填項目名稱同金額');return;}
-  DB.expenses.push({id:uid(), date:val('f_date')||todayStr(), name:name, amount:amount});
+  const d={ date:val('f_date')||todayStr(), name:name, amount:amount, cat:val('f_ecat')||'' };
+  if(id){ const e=(DB.expenses||[]).find(x=>x.id===id); if(!e){ alert('搵唔到呢筆支出'); return; } Object.assign(e,d); }
+  else { d.id=uid(); DB.expenses.push(d); }
   closeModal(); save();
 }
-function delExpense(id){ if(confirm('刪除呢筆支出？')){ DB.expenses=DB.expenses.filter(e=>e.id!==id); save(); } }
+function delExpense(id){ if(confirm('刪除呢筆支出？')){ DB.expenses=DB.expenses.filter(e=>e.id!==id); closeModal(); save(); } }
 
 /* ================= 🏢 公司tab（v2：四級角色） ================= */
 const ROLE_NAME={boss:'老闆',admin:'管理員',lead:'主任',coach:'師父'};
@@ -2178,6 +2215,7 @@ function vStaffView(){
         :'<p class="muted">呢個月冇收款。</p>')+'</div>'
       +'<div class="card"><h3>🧾 佢嘅私人支出（'+exps.length+'）</h3>'
       +(exps.length?exps.map(p=>'<div class="item row"><span class="muted">'+esc(p.date||'')+'</span>'
+          +(p.cat?'<span class="tag">'+esc(p.cat)+'</span>':'')
           +'<b>'+esc(p.name||'')+'</b><span class="right"></span><b style="color:var(--red)">'+money(p.amount||0)+'</b></div>').join('')
         :'<p class="muted">呢個月冇記支出。</p>')+'</div>';
   }
@@ -2294,8 +2332,8 @@ function svExport(){
     .concat((d.packages||[]).map(p=>[p.date,svName(p.studentId),p.name,p.total,p.amount])))+'\n\n';
   out+='【考試】\n'+svCsv([['日期','學生','類型','考場','結果','備註']]
     .concat((d.exams||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(e=>[e.date,svName(e.studentId),e.type,e.centre,e.result,e.note])))+'\n\n';
-  out+='【私人支出】\n'+svCsv([['日期','名稱','金額']]
-    .concat((d.expenses||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(p=>[p.date,p.name,p.amount])));
+  out+='【私人支出】\n'+svCsv([['日期','類別','名稱','金額']]
+    .concat((d.expenses||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(p=>[p.date,p.cat||'',p.name,p.amount])));
   const bl=new Blob([out],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(bl); const a=document.createElement('a');
   a.href=url; a.download=SV.name.replace(/[^\w\u4e00-\u9fa5]/g,'')+'_資料_'+todayStr()+'.csv'; a.click();
@@ -2350,7 +2388,10 @@ function companyMoneyCards(){
   const cexpSum=cexp.reduce((a,b)=>a+(Number(b.amount)||0),0);
   const myIncome=DB.payments.filter(p=>(p.date||'').startsWith(m)).reduce((a,b)=>a+(Number(b.amount)||0),0);
   return '<div class="card"><h3>🏢 公司支出（'+m+'）</h3>'
-    +(cexp.length?cexp.map(e=>'<div class="item row"><span>'+esc(e.date)+'</span><b>'+esc(e.name)+'</b><span class="right">'+money(e.amount)+'</span>'
+    +(cexp.length?cexp.map(e=>'<div class="item row"><span class="muted">'+esc(e.date)+'</span>'
+      +(e.cat?'<span class="tag">'+esc(e.cat)+'</span>':'')
+      +'<b>'+esc(e.name)+'</b><span class="right">'+money(e.amount)+'</span>'
+      +'<button class="btn grey sm" onclick="companyExpenseForm(\''+e.id+'\')">✏️</button>'
       +'<button class="btn red sm" onclick="if(confirm(\'刪除呢筆公司支出？\'))window.delCompanyExpense(\''+e.id+'\')">✕</button></div>').join(''):'<p class="muted">本月未有公司支出</p>')
     +'<button class="btn sm" style="margin-top:8px" onclick="companyExpenseForm()">＋ 公司支出</button></div>'
   +'<div class="card"><h3>📈 公司盤數（'+m+'）</h3>'
@@ -2359,13 +2400,26 @@ function companyMoneyCards(){
     +'<tr><td><b>公司利潤</b></td><td style="text-align:right"><b style="color:'+(commIn-cexpSum>=0?'var(--neon)':'var(--red)')+'">'+money(commIn-cexpSum)+'</b></td></tr></table>'
     +'<p class="muted" style="margin-bottom:0">你自己教學收入（唔計佣金、另計）：<b>'+money(myIncome)+'</b>（詳情喺💰帳目頁）</p></div>';
 }
-function companyExpenseForm(){
-  openModal('<h3>🏢 新增公司支出</h3>'
-    +'<label>日期</label><input id="ce_date" type="date" value="'+todayStr()+'">'
-    +'<label>項目（例：廣告、保險、租金）</label><input id="ce_name">'
-    +'<label>金額 (CAD)</label><input id="ce_amt" type="number" inputmode="decimal">'
-    +'<div class="row" style="margin-top:14px"><button class="btn" onclick="(function(){if(!val(\'ce_name\')||!val(\'ce_amt\')){alert(\'請填項目同金額\');return;}window.saveCompanyExpense({id:uid(),date:val(\'ce_date\')||todayStr(),name:val(\'ce_name\'),amount:Number(val(\'ce_amt\'))});closeModal();})()">儲存</button>'
-    +'<button class="btn grey" onclick="closeModal()">取消</button></div>');
+function companyExpenseForm(id){
+  const e = id ? (window.CEXP||[]).find(x=>x.id===id) : null;
+  if(id && !e){ alert('搵唔到呢筆公司支出'); return; }
+  const cats=(cfg().expCats||[]).slice();
+  const cur=(e&&e.cat)||'';
+  if(cur && !cats.includes(cur)) cats.unshift(cur);
+  openModal('<h3>🏢 '+(e?'修改':'新增')+'公司支出</h3>'
+    +'<label>日期</label><input id="ce_date" type="date" value="'+((e&&e.date)||todayStr())+'">'
+    +'<label>類別</label><select id="ce_cat"><option value="">（未分類）</option>'
+      +cats.map(c=>'<option'+(cur===c?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select>'
+    +'<label>項目（例：廣告、保險、租金）</label><input id="ce_name" value="'+esc((e&&e.name)||'')+'">'
+    +'<label>金額 (CAD)</label><input id="ce_amt" type="number" inputmode="decimal" value="'+(e?e.amount:'')+'">'
+    +'<div class="row" style="margin-top:14px"><button class="btn" style="flex:1" onclick="saveCompExp(\''+(id||'')+'\')">儲存</button>'
+    +'<button class="btn grey" style="flex:1" onclick="closeModal()">取消</button></div>');
+}
+function saveCompExp(id){
+  if(!val('ce_name')||!val('ce_amt')){ alert('請填項目同金額'); return; }
+  window.saveCompanyExpense({ id:id||uid(), date:val('ce_date')||todayStr(),
+    name:val('ce_name'), cat:val('ce_cat')||'', amount:Number(val('ce_amt')) });
+  closeModal();
 }
 function myCommCard(){
   const c=(window.ACCT||{}).comm;
@@ -2564,7 +2618,14 @@ function vSettings(){
     <div class="row" style="margin-top:10px"><button class="btn sm" onclick="checkUpdate(true)">🔄 檢查更新</button></div>
     <p class="muted" style="margin-bottom:0">版本 ☁️雲端版 v${APP_VER}（月曆／重複排堂／批量里數／自助連結／套票／休眠提醒／考場合格率／牌照里程碑／BDE獨立報讀／改職級／睇員工資料／考試歷程）· 2026-09-04
     <br><label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">😴 幾多日冇上堂算休眠<input id="s_sleep" type="number" style="width:70px" value="${cfg().sleepDays}"><button class="btn sm" onclick="cfg().sleepDays=Number(val('s_sleep'))||30;save()">存</button></label>
+    <br><label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">💸 支出類別（逗號分隔）<input id="s_expcats" style="width:260px" value="${esc((cfg().expCats||[]).join('，'))}"><button class="btn sm" onclick="saveExpCats()">存</button></label>
     <br><label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px">🚗 每堂預設里數(km)<input id="s_kmdef" type="number" inputmode="decimal" step="0.1" style="width:70px" value="${cfg().kmDefault||0}"><button class="btn sm" onclick="cfg().kmDefault=Number(val('s_kmdef'))||0;save()">存</button><span class="muted">批量填里數會有「全部填」快捷（0＝唔用）</span></label></p></div>`;
+}
+
+function saveExpCats(){
+  const v=(val('s_expcats')||'').split(/[，,]/).map(x=>x.trim()).filter(Boolean);
+  if(!v.length){ alert('最少要有一個類別'); return; }
+  cfg().expCats=v; save();
 }
 
 /* --- 名單管理 --- */
